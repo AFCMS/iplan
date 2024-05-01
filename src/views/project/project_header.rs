@@ -3,8 +3,8 @@ use std::cell::Cell;
 use std::thread;
 
 use crate::db::models::{Project, Record};
-use crate::db::operations::{read_records, read_tasks};
-use crate::views::{snippets::Chart, IPlanWindow};
+use crate::db::operations::{project_duration, read_records, read_tasks};
+use crate::views::snippets::Chart;
 
 mod imp {
     use super::*;
@@ -13,6 +13,8 @@ mod imp {
     #[template(resource = "/ir/imansalmani/iplan/ui/project/project_header.ui")]
     #[properties(type_wrapper=super::ProjectHeader)]
     pub struct ProjectHeader {
+        #[property(get, set)]
+        pub project_id: Cell<i64>,
         #[property(get, set)]
         pub stat_updated: Cell<bool>,
         #[template_child]
@@ -106,7 +108,7 @@ impl ProjectHeader {
             imp.description.set_label(&project.description());
             imp.description.set_visible(true);
         }
-        self.set_stat_updated(false);
+        self.set_project_id(project.id());
     }
 
     #[template_callback]
@@ -118,13 +120,8 @@ impl ProjectHeader {
         }
 
         let imp = self.imp();
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-        let project_id = self
-            .root()
-            .and_downcast::<IPlanWindow>()
-            .unwrap()
-            .project()
-            .id();
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
+        let project_id = self.project_id();
 
         imp.chart.clear();
         imp.chart_header.set_visible(false);
@@ -134,7 +131,7 @@ impl ProjectHeader {
             let dates = &mut vec![];
             dates.push(now.to_unix());
             let tasks: Vec<crate::db::models::Task> =
-                read_tasks(Some(project_id), None, None, None, None).expect("Failed to read tasks");
+                read_tasks(Some(project_id), None, None, None, None, false).unwrap();
 
             let mut last_7_days = 0;
             let mut labels = vec![];
@@ -154,9 +151,13 @@ impl ProjectHeader {
                 let date_unix = date.to_unix();
                 let mut duration = 0;
                 for task in &tasks {
-                    let records =
-                        read_records(task.id(), false, Some(date_unix), Some(dates[(i) as usize]))
-                            .expect("Failed to read records");
+                    let records = read_records(
+                        Some(task.id()),
+                        false,
+                        Some(date_unix),
+                        Some(dates[(i) as usize]),
+                    )
+                    .expect("Failed to read records");
                     for record in records {
                         duration += record.duration();
                     }
@@ -168,23 +169,20 @@ impl ProjectHeader {
                 tooltips.push(Record::duration_display(duration));
             }
 
-            let mut total_time = 0;
-            for task in tasks {
-                total_time += task.duration();
-            }
+            let total_time = project_duration(project_id).unwrap();
             tx.send((total_time, last_7_days, labels, values, tooltips))
                 .unwrap();
         });
         rx.attach(
             None,
             glib::clone!(
-            @weak imp => @default-return glib::Continue(false),
+            @weak imp => @default-return glib::ControlFlow::Break,
             move |data| {
                 let (total_time, last_7_days, labels, values, tooltips) = data;
 
                 if total_time == 0 {
                     imp.placeholder.set_visible(true);
-                    return glib::Continue(false);
+                    return glib::ControlFlow::Break
                 } else {
                     imp.placeholder.set_visible(false);
                     imp.chart_header.set_visible(true);
@@ -209,7 +207,7 @@ impl ProjectHeader {
                     value / max as f64
                 }).collect();
                 imp.chart.set_data(labels, percentages, y_labels, tooltips);
-                glib::Continue(false)
+                glib::ControlFlow::Break
             }),
         );
     }

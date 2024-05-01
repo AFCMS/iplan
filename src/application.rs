@@ -34,7 +34,7 @@ use crate::db::operations::{
 };
 use crate::views::search::SearchWindow;
 use crate::views::task::TaskWindow;
-use crate::views::{BackupWindow, IPlanWindow, PreferencesWindow};
+use crate::views::{ActionScope, BackupWindow, IPlanWindow, PreferencesWindow};
 
 mod imp {
     use super::*;
@@ -66,6 +66,7 @@ mod imp {
             obj.set_accels_for_action("app.shortcuts", &["<primary>question"]);
             obj.set_accels_for_action("app.search", &["<primary>f"]);
             obj.set_accels_for_action("app.modal-close", &["Escape"]);
+            obj.set_accels_for_action("app.window-close", &["<primary>w"]);
         }
         fn properties() -> &'static [glib::ParamSpec] {
             Self::derived_properties()
@@ -107,7 +108,6 @@ mod imp {
                 }
                 window.upcast()
             };
-
             window.present();
         }
     }
@@ -130,8 +130,14 @@ impl IPlanApplication {
             .build()
     }
 
+    pub fn window_by_name(&self, name: &str) -> Option<gtk::Window> {
+        self.windows()
+            .into_iter()
+            .find(|window| window.widget_name() == name)
+    }
+
     pub fn send_reminder(&self, reminder: Reminder) {
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
@@ -148,11 +154,11 @@ impl IPlanApplication {
             thread::sleep(remains);
             if tx.send("").is_err() {}
         });
-        rx.attach(None,glib::clone!(@weak self as obj => @default-return glib::Continue(false), move |_: &str| {
+        rx.attach(None, glib::clone!(@weak self as obj => @default-return glib::ControlFlow::Break, move |_: &str| {
             let fresh_reminder = read_reminder(reminder.id()).expect("Failed to read reminder");
 
             if fresh_reminder.past() || fresh_reminder.datetime() != reminder.datetime() {
-                return glib::Continue(false);
+				return glib::ControlFlow::Break;
             }
 
             let task = read_task(fresh_reminder.task()).expect("Failed to read task");
@@ -162,7 +168,7 @@ impl IPlanApplication {
             fresh_reminder.set_past(true);
             update_reminder(&fresh_reminder).expect("Failed to update reminder");
 
-            glib::Continue(false)
+            glib::ControlFlow::Break
         }));
     }
 
@@ -204,6 +210,9 @@ impl IPlanApplication {
         let modal_close_action = gio::ActionEntry::builder("modal-close")
             .activate(move |app: &Self, _, _| app.close_modal())
             .build();
+        let window_close_action = gio::ActionEntry::builder("window-close")
+            .activate(move |app: &Self, _, _| app.close_window())
+            .build();
         self.add_action_entries([
             quit_action,
             about_action,
@@ -212,6 +221,7 @@ impl IPlanApplication {
             search_action,
             backup_action,
             modal_close_action,
+            window_close_action,
         ]);
     }
 
@@ -226,31 +236,58 @@ impl IPlanApplication {
             active_window = self.active_window().unwrap();
         }
 
-        let modal = SearchWindow::new(self.upcast_ref::<gtk::Application>(), &active_window);
+        let modal = SearchWindow::new(self, &active_window);
         modal.present();
         modal.connect_closure(
             "project-activated",
             true,
             glib::closure_local!(@watch self as obj => move |_: SearchWindow, project: Project| {
                 let main_window = obj.window_by_name("IPlanWindow").unwrap().downcast::<IPlanWindow>().unwrap();
-                main_window.change_project(project);
+                if main_window.is_visible_project(project.id()) {
+                    main_window.change_project(project);
+                    main_window.imp().sidebar_projects.check_archive_hidden();
+                }
+                main_window.close_sidebar();
             }),
         );
         modal.connect_closure(
             "task-activated",
             true,
             glib::closure_local!(@watch self as obj => move |_: SearchWindow, task: Task| {
-                let project = read_project(task.project()).unwrap();
                 let main_window = obj.window_by_name("IPlanWindow").unwrap().downcast::<IPlanWindow>().unwrap();
-                main_window.change_project(project);
+                let task_project = task.project();
 
-                let modal = TaskWindow::new(obj.upcast_ref::<gtk::Application>(), &main_window, task);
+                if main_window.is_visible_project(task_project) {
+                    if let Ok(project) = read_project(task_project)  {
+                        main_window.change_project(project);
+                        main_window.imp().sidebar_projects.check_archive_hidden();
+                    }
+                }
+                main_window.close_sidebar();
+
+                let modal = TaskWindow::new(obj.upcast_ref::<gtk::Application>(), &main_window, task.clone());
                 modal.present();
                 modal.connect_closure(
-                    "task-window-close",
+                    "task-changed",
+                    true,
+                    glib::closure_local!(@watch main_window => move |_win: TaskWindow, changed_task: Task| {
+                        main_window.activate_action(
+                            "task.changed",
+                            Some(&glib::Variant::from((
+                                changed_task.to_variant(),
+                                ActionScope::None.to_variant(),
+                            )))
+                        ).unwrap();
+                    }),
+                );
+                modal.connect_closure(
+                    "task-duration-changed",
                     true,
                     glib::closure_local!(@watch main_window => move |_win: TaskWindow, task: Task| {
-                        main_window.imp().project_lists.reset_task(task);
+                        main_window.activate_action("task.duration-changed", Some(&glib::Variant::from((
+                            task.to_variant(),
+                            ActionScope::None.to_variant(),
+                        )))).unwrap();
                     }),
                 );
             }),
@@ -325,13 +362,10 @@ impl IPlanApplication {
         }
     }
 
-    fn window_by_name(&self, name: &str) -> Option<gtk::Window> {
-        for window in self.windows() {
-            if window.widget_name() == name {
-                return Some(window);
-            }
+    fn close_window(&self) {
+        if let Some(window) = self.active_window() {
+            window.close();
         }
-        None
     }
 
     #[cfg(any(target_os = "linux", target_os = "freebsd"))]

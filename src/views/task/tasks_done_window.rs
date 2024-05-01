@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use crate::db::models::{Section, Task};
 use crate::db::operations::{read_task, read_tasks};
 use crate::views::task::{TaskRow, TaskWindow};
-use crate::views::IPlanWindow;
+use crate::views::{ActionScope, IPlanWindow};
 
 mod imp {
     use super::*;
@@ -37,17 +37,28 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
             klass.bind_template_instance_callbacks();
-            klass.install_action("task.check", Some("i"), move |obj, _, value| {
-                let imp = obj.imp();
-                let index = value.unwrap().get().unwrap();
-                let upper_row = imp.tasks_box.row_at_index(index - 1);
-                let row = imp.tasks_box.row_at_index(index).unwrap();
-                if let Some(upper_row) = upper_row {
-                    upper_row.grab_focus();
-                }
-                imp.tasks_box.remove(&row);
-                obj.emit_by_name::<()>("task-undo", &[&row.property::<Task>("task")]);
-            });
+            klass.install_action(
+                "task.changed",
+                Some(Task::static_variant_type().as_str()),
+                move |obj, _, value| {
+                    let imp = obj.imp();
+                    let task: Task = value.unwrap().get().unwrap();
+
+                    obj.activate_task_action("task.changed", &task);
+
+                    if task.done() {
+                        return;
+                    }
+
+                    let row = obj.row_by_id(task.id()).unwrap();
+                    let upper_row = imp.tasks_box.row_at_index(row.index() - 1);
+                    if let Some(upper_row) = upper_row {
+                        upper_row.grab_focus();
+                    }
+                    imp.tasks_box.remove(&row);
+                    obj.emit_by_name::<()>("task-undo", &[&task]);
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -103,6 +114,7 @@ impl TasksDoneWindow {
             Some(true),
             Some(0),
             None,
+            false,
         )
         .unwrap();
         for task in tasks {
@@ -147,27 +159,96 @@ impl TasksDoneWindow {
         }
     }
 
+    pub fn row_by_id(&self, id: i64) -> Option<TaskRow> {
+        let imp = self.imp();
+        let rows = imp.tasks_box.observe_children();
+        for i in 0..rows.n_items() {
+            if let Some(row) = rows.item(i).and_downcast::<TaskRow>() {
+                if row.task().id() == id {
+                    return Some(row);
+                }
+            }
+        }
+        None
+    }
+
+    pub fn activate_task_action(&self, name: &str, task: &Task) {
+        let porject_id = self.section().project();
+        self.transient_for()
+            .unwrap()
+            .activate_action(
+                name,
+                Some(&glib::Variant::from((
+                    task.to_variant(),
+                    ActionScope::Project(porject_id).to_variant(),
+                ))),
+            )
+            .unwrap();
+    }
+
+    pub fn add_delete_toast(&self, task: &Task, toast: adw::Toast) {
+        toast.connect_button_clicked(
+            glib::clone!(@weak self as obj, @weak task => move |_toast| {
+                if let Some(row) = obj.row_by_id(task.id()) {
+                    row.task().set_suspended(false);
+                    row.changed();
+                }
+
+                let main_win = obj.transient_for().and_downcast::<IPlanWindow>().unwrap();
+                main_win
+                    .activate_action(
+                        "task.changed",
+                        Some(&glib::Variant::from((
+                            task.to_variant(),
+                            ActionScope::DeleteToast.to_variant(),
+                        ))),
+                    )
+                    .unwrap();
+            }),
+        );
+    }
+
     #[template_callback]
     fn handle_tasks_box_row_activated(&self, row: gtk::ListBoxRow, _tasks_box: gtk::ListBox) {
         let obj = self.root().and_downcast::<gtk::Window>().unwrap();
         let row = row.downcast::<TaskRow>().unwrap();
         let modal = TaskWindow::new(&obj.application().unwrap(), &obj, row.task());
         modal.present();
-        modal.connect_closure(
-            "task-window-close",
-            true,
-            glib::closure_local!(@watch self as obj, @weak-allow-none row => move |_win: TaskWindow, task: Task| {
-                let row = row.unwrap();
+        modal.connect_close_request(
+            glib::clone!(@weak self as obj, @weak row => @default-return glib::signal::Propagation::Proceed, move |_| {
+                let task = row.task();
                 if !task.done() {
                     obj.imp().tasks_box.remove(&row);
                     obj.emit_by_name::<()>("task-undo", &[&task]);
-                } else {
-                    row.reset(task);
+                } else if task.suspended() {
                     row.changed();
                 }
-                let main_window = obj.transient_for().unwrap();
-                main_window.activate_action("project.update", None).expect("Failed to send project.update signal");
-            }
-        ));
+				glib::signal::Propagation::Proceed
+            }),
+        );
+        modal.connect_closure(
+            "task-changed",
+            true,
+            glib::closure_local!(@watch self as obj, @weak-allow-none row => move |_win: TaskWindow, changed_task: Task| {
+                let row = row.unwrap();
+                let task = row.task();
+                let task_id = task.id();
+                if task_id == changed_task.id() {
+                    row.reset(changed_task);
+                } else if task_id == changed_task.parent() {
+                    row.reset_subtasks();
+                }
+                obj.activate_task_action("task.changed", &task);
+            }),
+        );
+        modal.connect_closure(
+            "task-duration-changed",
+            true,
+            glib::closure_local!(@watch self as obj, @weak-allow-none row => move |_win: TaskWindow, task: Task| {
+                let row = row.unwrap();
+                row.refresh_timer();
+                obj.activate_task_action("task.duration-changed", &task);
+            }),
+        );
     }
 }

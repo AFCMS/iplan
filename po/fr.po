@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: iplan\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-06-28 16:00+0330\n"
+"POT-Creation-Date: 2023-07-30 20:17+0330\n"
 "PO-Revision-Date: 2023-06-11 20:32+0200\n"
 "Last-Translator: Irénée Thirion <irenee.thirion@e.email>\n"
 "Language-Team: \n"
@@ -17,55 +17,54 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.3.1\n"
 
-#: data/ir.imansalmani.IPlan.desktop.in:3
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:6 src/ui/window.ui:28
+#: data/ir.imansalmani.IPlan.desktop.in:3 src/ui/window.ui:28
 msgid "IPlan"
 msgstr "IPlan"
 
+#: data/ir.imansalmani.IPlan.desktop.in:4
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:7
 msgid "Your plan for improving personal life and workflow"
 msgstr "Votre programme pour faciliter votre vie personnelle et vos activités"
 
+#: data/ir.imansalmani.IPlan.desktop.in:5
+msgid "plan;planning;tasks;projects;"
+msgstr ""
+
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:9
+#, fuzzy
 msgid ""
-"IPlan goal is to be a user friendly tool for those who want to organize "
-"their personal life or jobs."
+"IPlan goal is to be a user-friendly tool for those who want to organize "
+"their ether personal life, jobs, or both."
 msgstr ""
 "L’objectif de IPlan est d’être un outil simple d’utilisation pour ceux qui "
 "souhaitent organiser leur vie personnelle ou leur travail."
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:10
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:147
 msgid "Features:"
 msgstr "Fonctionnalités :"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:12
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:149
 msgid "Grouping tasks with project and list"
 msgstr "Groupement des tâches par projets et listes"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:13
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:150
 msgid "Timer for tasks"
 msgstr "Minuteur pour les tâches"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:14 src/ui/task/task_page.ui:73
-#: src/ui/task/task_page.ui:87
+#: src/ui/task/task_page.ui:89
 msgid "Subtasks"
 msgstr "Sous-tâches"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:15
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:99
 msgid "Calendar for Exploring tasks by date"
 msgstr "Calendrier pour parcourir les tâches par date"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:16
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:151
 msgid "Global search"
 msgstr "Recherche globale"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:17
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:152
 msgid "Arranging projects, lists, and tasks by drag and drop"
 msgstr "Réorganisation des projets, listes et tâches par le glisser-déposer"
 
@@ -77,8 +76,8 @@ msgstr "Fenêtre principale de IPlan"
 msgid "Task window"
 msgstr "Fenêtre des tâches"
 
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:30 src/ui/window.ui:49
-#: src/ui/window.ui:107
+#: data/ir.imansalmani.IPlan.metainfo.xml.in:30 src/ui/window.ui:53
+#: src/ui/calendar/calendar.ui:31
 msgid "Calendar"
 msgstr "Calendrier"
 
@@ -94,229 +93,36 @@ msgstr "Fenêtre principale de IPlan (en taille réduite)"
 msgid "Iman Salmani"
 msgstr "Iman Salmani"
 
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:65
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:80
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:96
-msgid "New features and updates"
-msgstr "Nouvelles fonctionnalités et mises à jour"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:67
-msgid "New design for drag and drop"
+#: src/ui/window.ui:42
+msgid "Main Menu"
 msgstr ""
 
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:68
-#, fuzzy
-msgid "New Project create window"
-msgstr "Nouveau projet"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:69
-msgid "Close windows with escape key"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:70
-#, fuzzy
-msgid "Scroll while dragging task"
-msgstr "Erreur lors de l’importation des données"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:71
-msgid "Add task inside calendar page"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:72
-msgid "Drop task on each other"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:73
-msgid "Rename tasks list to section"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:74
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:90
-#, fuzzy
-msgid "Code refactoring, Bug fixes, and UI improvements"
-msgstr "Refonte du code et améliorations de l’interface"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:82
-msgid "The task row shows the description, subtasks, due date, and reminder"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:83
-msgid "New design for task rows"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:84
-msgid "Add task button below tasks list"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:85
-msgid "One week per calendar page"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:86
-msgid "Today and No Date buttons on top of the date picker"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:87
-msgid "Click on a searched task will open the task window"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:88
-msgid ""
-"Auto start (if the user lets the app run in the background) and checking for "
-"reminders in the startup"
-msgstr ""
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:89
-#, fuzzy
-msgid ""
-"Czech and French and Brazilian Portuguese Translations Added or updated "
-"thanks to Amerey.eu, Irénée Thirion, and Fúlvio Leo"
-msgstr "Ajout d’une traduction en portugais brésilien grâce à Fúlvio Leo"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:98
-msgid "Backing up system"
-msgstr "Système de sauvegarde"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:100
-msgid ""
-"Tasks can have date and reminders (Application will remain in background for "
-"handling reminders)"
-msgstr ""
-"Les tâches peuvent avoir une date et des rappels associés (l’application "
-"continuera de fonctionner en arrière-plan pour gérer les rappels)"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:101
-msgid "When a task doesn't have record, Timer button will move to options"
-msgstr ""
-"Lorsqu’une tâche n’a pas de chronomètre, le bouton du minuteur sera dans les "
-"options"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:102
-msgid "Record edit window"
-msgstr "Fenêtre de modification du chronomètre"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:103
-msgid "Now users able to edit record duration by changing start time"
-msgstr ""
-"L’utilisateur peut maintenant modifier la durée du chronomètre en changeant "
-"l’heure de début"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:104
-msgid "Bug fixes, and UI improvements"
-msgstr "Corrections de bogues et améliorations de l’interface"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:110
-msgid "Bug fix"
-msgstr "Correction de bogues"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:115
-msgid "Code refactoring, and UI improvements"
-msgstr "Refonte du code et améliorations de l’interface"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:117
-msgid "New widgets for selecting Date and Time"
-msgstr "Nouveaux widgets pour sélectionner la date et l’heure"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:118
-msgid "Changing duration of the new record by setting end time"
-msgstr ""
-"Modification de la durée du nouveau chronomètre en définissant une heure de "
-"fin"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:119
-msgid "Add Brazilian Portuguese Translation thanks to Fúlvio Leo"
-msgstr "Ajout d’une traduction en portugais brésilien grâce à Fúlvio Leo"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:125
-msgid "Subtasks, Bug fixes, and UI improvements"
-msgstr "Sous-tâches, corrections de bogues et améliorations d’interface"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:127
-msgid "Task Window which contains task info, subtasks, and records"
-msgstr ""
-"La fenêtre des tâches qui contient des informations sur les tâches, sous-"
-"tâches"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:128
-msgid "Translation to Persian and Turkish languages thanks to Sabri Ünal"
-msgstr "Traduction en perse et en turque grâce à Sabri Ünal"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:129
-msgid "New toast message for moving back task from the tasks done list"
-msgstr ""
-"Nouveau message pop-up lorsqu’une tâche est retirée de la liste des tâches "
-"accomplies"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:130
-msgid "Users are now able to pick emojis for their projects in the edit window"
-msgstr ""
-"L’utilisateur peut maintenant choisir des émojis pour ses projets dans la "
-"fenêtre d’édition"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:131
-msgid "Projects and Tasks now can have descriptions"
-msgstr "Les projets et tâches peuvent désormais avoir des descriptions"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:137
-msgid "Performance improvement and records window"
-msgstr "Améliorations des performances et fenêtre des chronomètres"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:139
-msgid "Lazy loading for project tasks and stat"
-msgstr "Chargement lent pour les tâches et statistiques des projets"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:140
-msgid "Records window for creating, editing, and deleting records"
-msgstr ""
-"Fenêtre des chronomètres pour créer, modifier et supprimer les chronomètres"
-
-#: data/ir.imansalmani.IPlan.metainfo.xml.in:146
-msgid "First stable release."
-msgstr "Première version stable."
-
-#: src/ui/window.ui:140 src/ui/snippets/date_row.ui:24
-#: src/views/calendar/tasks_list.rs:104 src/views/snippets/date_row.rs:121
-msgid "Today"
-msgstr "Aujourd’hui"
-
-#: src/ui/window.ui:178
-#, fuzzy
-msgid "New _Section"
-msgstr "Nouveau chronomètre"
-
-#: src/ui/window.ui:182
-msgid "_Edit Project"
-msgstr "_Modifier le projet"
-
-#: src/ui/window.ui:188
+#: src/ui/window.ui:90
 msgid "_Preferences"
 msgstr ""
 
-#: src/ui/window.ui:192
+#: src/ui/window.ui:94
 msgid "_Backup"
 msgstr "_Sauvegarde"
 
-#: src/ui/window.ui:196
+#: src/ui/window.ui:98
 msgid "_Keyboard Shortcuts"
 msgstr "_Raccourcis clavier"
 
-#: src/ui/window.ui:200
+#: src/ui/window.ui:102
 msgid "_About IPlan"
 msgstr "À _propos de IPlan"
 
-#: src/ui/window.ui:206
-msgid "_Quit"
-msgstr "_Quitter"
-
-#: src/ui/preferences_window.ui:15
+#: src/ui/preferences_window.ui:17
 msgid "Run in Background"
 msgstr ""
 
-#: src/ui/preferences_window.ui:16
+#: src/ui/preferences_window.ui:18
 msgid "Allow send reminders when the app is closed"
 msgstr ""
 
 #: src/ui/shortcuts_window.ui:13
+#, fuzzy
 msgctxt "shortcut window"
 msgid "Application"
 msgstr "Application"
@@ -327,26 +133,29 @@ msgid "Preferences"
 msgstr ""
 
 #: src/ui/shortcuts_window.ui:23
+#, fuzzy
 msgctxt "shortcut window"
 msgid "Keyboard Shortcuts"
 msgstr "Raccourcis clavier"
 
 #: src/ui/shortcuts_window.ui:30
+#, fuzzy
 msgctxt "shortcut window"
 msgid "Primary Menu"
 msgstr "Menu principal"
 
 #: src/ui/shortcuts_window.ui:36
+#, fuzzy
 msgctxt "shortcut window"
 msgid "Quit"
 msgstr "Quitter"
 
-#: src/ui/shortcuts_window.ui:46
+#: src/ui/shortcuts_window.ui:45
 msgctxt "shortcut window"
 msgid "Tasks"
 msgstr "Tâches"
 
-#: src/ui/shortcuts_window.ui:49
+#: src/ui/shortcuts_window.ui:48
 msgctxt "shortcut window"
 msgid "Search"
 msgstr "Chercher"
@@ -375,20 +184,17 @@ msgstr "Importer"
 msgid "While importing, previous data will be cached"
 msgstr "Pendant l’importation, les données précédentes seront mises en cache"
 
-#: src/ui/calendar/calendar.ui:18
-msgid "Previous week"
-msgstr ""
-
-#: src/ui/calendar/calendar.ui:36
-msgid "Next week"
-msgstr ""
+#: src/ui/calendar/calendar.ui:41 src/ui/snippets/date_row.ui:26
+#: src/db/models/task.rs:128 src/views/calendar/day_view.rs:94
+msgid "Today"
+msgstr "Aujourd’hui"
 
 #: src/ui/project/project_create_window.ui:16
 #, fuzzy
 msgid "New Project"
 msgstr "Nouveau projet"
 
-#: src/ui/project/project_create_window.ui:24 src/ui/record/record_window.ui:25
+#: src/ui/project/project_create_window.ui:24 src/ui/record/record_window.ui:26
 #: src/ui/reminder/reminder_window.ui:25
 msgid "Cancel"
 msgstr "Annuler"
@@ -398,29 +204,29 @@ msgid "Add"
 msgstr ""
 
 #: src/ui/project/project_create_window.ui:62
-#: src/ui/project/project_edit_window.ui:48
+#: src/ui/project/project_edit_window.ui:50
 msgid "Name"
 msgstr "Nom"
 
 #: src/ui/project/project_create_window.ui:69
-#: src/ui/project/project_edit_window.ui:56
+#: src/ui/project/project_edit_window.ui:57
 msgid "Icon"
 msgstr "Icône"
 
-#: src/ui/project/project_create_window.ui:87
-#: src/ui/project/project_edit_window.ui:75 src/ui/task/task_page.ui:44
+#: src/ui/project/project_create_window.ui:88
+#: src/ui/project/project_edit_window.ui:76 src/ui/task/task_page.ui:45
 msgid "Description"
 msgstr "Description"
 
-#: src/ui/project/project_edit_window.ui:17
+#: src/ui/project/project_edit_window.ui:16
 msgid "Edit Project"
 msgstr "Modifier le projet"
 
-#: src/ui/project/project_edit_window.ui:105
+#: src/ui/project/project_edit_window.ui:104
 msgid "Archive"
 msgstr "Archiver"
 
-#: src/ui/project/project_edit_window.ui:117
+#: src/ui/project/project_edit_window.ui:115
 msgid "Delete"
 msgstr "Supprimer"
 
@@ -433,85 +239,98 @@ msgstr "Temps passé par jour"
 msgid "Time spent per day"
 msgstr "Temps passé par jour"
 
-#: src/ui/project/project_lists.ui:35
+#: src/ui/project/project_page.ui:27
+#, fuzzy
+msgid "Project Menu"
+msgstr "Projets"
+
+#: src/ui/project/project_page.ui:64
 #, fuzzy
 msgid "no sections found"
 msgstr "Aucun chronomètre trouvé"
 
-#: src/ui/project/project_lists.ui:64
+#: src/ui/project/project_page.ui:93
 #, fuzzy
 msgid "New section"
 msgstr "Nouveau chronomètre"
 
-#: src/ui/project/section_box.ui:49 src/ui/task/tasks_box.ui:47
-#: src/ui/task/tasks_box.ui:78
+#: src/ui/project/project_page.ui:107
+#, fuzzy
+msgid "New _Section"
+msgstr "Nouveau chronomètre"
+
+#: src/ui/project/project_page.ui:111
+msgid "_Edit Project"
+msgstr "_Modifier le projet"
+
+#: src/ui/project/section_box.ui:50 src/ui/task/tasks_box.ui:47
 msgid "Add task"
 msgstr ""
 
-#: src/ui/project/section_box.ui:90
+#: src/ui/project/section_box.ui:80
 msgid "Done tasks"
 msgstr "Tâches accomplies"
 
-#: src/ui/project/section_box.ui:120
+#: src/ui/project/section_box.ui:91
 #, fuzzy
 msgid "Delete section"
 msgstr "Supprimer la liste"
 
-#: src/ui/record/record_window.ui:17
+#: src/ui/record/record_window.ui:18 src/ui/task/task_page.ui:166
 msgid "New Record"
 msgstr "Nouveau chronomètre"
 
-#: src/ui/record/record_window.ui:31 src/ui/reminder/reminder_window.ui:31
+#: src/ui/record/record_window.ui:32 src/ui/reminder/reminder_window.ui:31
 msgid "Done"
 msgstr "Fait"
 
-#: src/ui/record/record_window.ui:48
+#: src/ui/record/record_window.ui:49
 msgid "Starts"
 msgstr "Commence le"
 
-#: src/ui/record/record_window.ui:51 src/ui/record/record_window.ui:71
+#: src/ui/record/record_window.ui:52 src/ui/record/record_window.ui:69
 #: src/ui/reminder/reminder_window.ui:50
 msgid "Date"
 msgstr "Date"
 
-#: src/ui/record/record_window.ui:58 src/ui/record/record_window.ui:78
+#: src/ui/record/record_window.ui:58 src/ui/record/record_window.ui:75
 #: src/ui/reminder/reminder_window.ui:56
 msgid "Time"
 msgstr "Heure"
 
-#: src/ui/record/record_window.ui:68
+#: src/ui/record/record_window.ui:66
 msgid "Ends"
 msgstr "Finit le"
 
-#: src/ui/record/record_window.ui:87
+#: src/ui/record/record_window.ui:84
 msgid "Duration"
 msgstr "Durée"
-
-#: src/ui/record/record_window.ui:99 src/ui/reminder/reminder_window.ui:67
-msgid "delete"
-msgstr "Supprimer"
 
 #: src/ui/reminder/reminder_window.ui:17
 msgid "Reminder"
 msgstr "Rappel"
 
-#: src/ui/search/search_window.ui:16
+#: src/ui/reminder/reminder_window.ui:67
+msgid "delete"
+msgstr "Supprimer"
+
+#: src/ui/search/search_window.ui:18
 msgid "Search"
 msgstr "Chercher"
 
-#: src/ui/search/search_window.ui:54
+#: src/ui/search/search_window.ui:55
 msgid "no results found"
 msgstr "Aucun résultat trouvé"
 
-#: src/ui/sidebar/sidebar_projects.ui:14
+#: src/ui/sidebar/sidebar_projects.ui:21
 msgid "Projects"
 msgstr "Projets"
 
-#: src/ui/sidebar/sidebar_projects.ui:33
+#: src/ui/sidebar/sidebar_projects.ui:36
 msgid "Show archive projects"
 msgstr "Afficher les projets archivés"
 
-#: src/ui/sidebar/sidebar_projects.ui:40
+#: src/ui/sidebar/sidebar_projects.ui:43
 msgid "New project"
 msgstr "Nouveau projet"
 
@@ -523,60 +342,77 @@ msgstr "A_nnuler"
 msgid "_Delete"
 msgstr "_Supprimer"
 
-#: src/ui/snippets/date_row.ui:38
+#: src/ui/snippets/date_row.ui:40
 #, fuzzy
 msgid "No Date"
 msgstr "Date"
 
-#: src/ui/task/task_row.ui:227 src/views/task/task_row.rs:308
-msgid "Start _timer"
+#: src/ui/task/task_row.ui:220 src/views/task/task_row.rs:328
+msgid "Start _Timer"
 msgstr ""
 
-#: src/ui/task/task_row.ui:243
+#: src/ui/task/task_row.ui:229
+msgid "Move Up"
+msgstr ""
+
+#: src/ui/task/task_row.ui:237
+msgid "Move Down"
+msgstr ""
+
+#: src/ui/task/task_row.ui:248
 #, fuzzy
-msgid "_Delete task"
+msgid "_Delete Task"
 msgstr "_Supprimer"
 
-#: src/ui/task/task_page.ui:25
+#: src/ui/task/task_page.ui:26
 msgid "Due date"
 msgstr ""
 
-#: src/ui/task/task_page.ui:31
+#: src/ui/task/task_page.ui:32
 msgid "Reminders"
 msgstr "Rappels"
 
-#: src/ui/task/task_page.ui:92
+#: src/ui/task/task_page.ui:94
 msgid "Records"
 msgstr "Chronomètres"
 
-#: src/ui/task/task_page.ui:150
-msgid "no records found"
-msgstr "Aucun chronomètre trouvé"
+#: src/ui/task/tasks_box.ui:78
+#, fuzzy
+msgid "Add Task"
+msgstr "Tâche"
 
-#: src/ui/task/task_page.ui:151
-msgid "Use add button up there or start a timer"
-msgstr "Utilisez le bouton Ajouter ci-dessus ou démarrez un minuteur"
-
-#: src/ui/task/tasks_done_window.ui:51
+#: src/ui/task/tasks_done_window.ui:52
 msgid "no done tasks found"
 msgstr "Aucune tâche accomplie trouvée"
 
 #. Translators: Replace "translator-credits" with your names, one name per line
-#: src/application.rs:300
+#: src/application.rs:347
 msgid "translator-credits"
 msgstr "Irénée Thirion <irenee.thirion@e.email>"
 
-#: src/application.rs:334 src/application.rs:370
+#: src/application.rs:378 src/application.rs:414
 msgid "IPlan needs to run in the background to send reminders"
 msgstr ""
 "IPlan nécessite de fonctionner en arrière-plan pour envoyer des rappels"
 
-#: src/views/window.rs:96 src/views/window.rs:168
+#: src/db/models/task.rs:130
+msgid "Tomorrow"
+msgstr ""
+
+#: src/db/models/record.rs:75
+#, fuzzy
+msgid "day"
+msgstr "Aujourd’hui"
+
+#: src/db/models/record.rs:77
+msgid "days"
+msgstr ""
+
+#: src/views/window.rs:450
 msgid "Personal"
 msgstr "Personnel"
 
-#: src/views/window.rs:98 src/views/window.rs:169
-#: src/views/project/project_create_window.rs:148
+#: src/views/window.rs:451 src/views/project/project_create_window.rs:148
 msgid "Tasks"
 msgstr "Tâches"
 
@@ -596,53 +432,59 @@ msgstr "Erreur lors de l’importation des données"
 msgid "Project should have a name!"
 msgstr ""
 
-#: src/views/project/project_edit_window.rs:154
-msgid "Delete \"{}\" project?"
+#: src/views/project/project_edit_window.rs:157
+#, fuzzy
+msgid "Delete “{}” project?"
 msgstr "Supprimer le projet « {} » ?"
 
-#: src/views/project/project_edit_window.rs:157
+#: src/views/project/project_edit_window.rs:160
 msgid "The project and its tasks will be permanently lost."
 msgstr "Le projet et les tâches qu’il contient seront définitivement perdus."
 
 #. Translators: {} Will be replaced with a shortcut label.
-#: src/views/project/project_lists.rs:67
+#: src/views/project/project_page.rs:96
 #, fuzzy
 msgid "Use the primary menu {} for adding a new section"
 msgstr "Utilisez le menu principal {} pour ajouter de nouvelles listes"
 
-#: src/views/project/project_lists.rs:206
+#: src/views/project/project_page.rs:254
 #, fuzzy
 msgid "New Section"
 msgstr "Nouveau chronomètre"
 
-#: src/views/project/section_box.rs:71
+#: src/views/project/section_box.rs:80
 #, fuzzy
-msgid "\"{}\" moved to the done tasks section"
+msgid "“{}” moved to the done tasks list"
 msgstr "« {} » déplacé vers la liste des tâches accomplies"
 
-#: src/views/project/section_box.rs:74 src/views/task/task_row.rs:509
+#: src/views/project/section_box.rs:82 src/views/task/task_row.rs:554
 msgid "Undo"
 msgstr "Annuler"
 
-#: src/views/project/section_box.rs:253
+#: src/views/project/section_box.rs:312
 #, fuzzy
-msgid "Delete \"{}\" section?"
+msgid "Delete “{}” section?"
 msgstr "Supprimer la liste « {} » ?"
 
-#: src/views/project/section_box.rs:256
+#: src/views/project/section_box.rs:315
 #, fuzzy
 msgid "The section and its tasks will be permanently lost."
 msgstr "La liste et ses tâches seront définitivement perdues."
 
-#: src/views/record/record_row.rs:92
+#: src/views/record/record_row.rs:102
 msgid "until"
 msgstr "jusqu’à"
 
-#: src/views/record/record_window.rs:192
+#: src/views/record/record_window.rs:120
+#, fuzzy
+msgid "Edit Record"
+msgstr "Nouveau chronomètre"
+
+#: src/views/record/record_window.rs:207
 msgid "Duration can't be 0"
 msgstr "La durée ne peut être 0"
 
-#: src/views/record/record_window.rs:200
+#: src/views/record/record_window.rs:215
 #, fuzzy
 msgid "Record end time can't be in future"
 msgstr "L’heure ne peut être dans le passé"
@@ -652,33 +494,195 @@ msgid "Time can't be in the past"
 msgstr "L’heure ne peut être dans le passé"
 
 #: src/views/search/search_result.rs:71
-msgid "Project"
-msgstr "Projet"
+#, fuzzy
+msgid "project"
+msgstr "Projets"
 
 #: src/views/search/search_result.rs:82
-msgid "Task"
-msgstr "Tâche"
+#, fuzzy
+msgid "task"
+msgstr "Sous-tâches"
 
-#: src/views/sidebar/sidebar_projects.rs:356
+#: src/views/sidebar/sidebar_projects.rs:368
 msgid "Task moved to {}"
 msgstr ""
 
-#: src/views/sidebar/sidebar_projects.rs:370
+#: src/views/sidebar/sidebar_projects.rs:396
 #, fuzzy
 msgid "{} doesn't have any section"
 msgstr "« {} » déplacé vers la liste des tâches accomplies"
 
-#: src/views/task/task_row.rs:232
+#: src/views/task/task_row.rs:240
 msgid "Inbox"
 msgstr ""
 
-#: src/views/task/task_row.rs:508
-msgid "\"{}\" is going to delete"
+#: src/views/task/task_row.rs:553
+#, fuzzy
+msgid "“{}” is going to delete"
 msgstr "« {} » sera supprimée"
 
-#: src/views/task/tasks_done_window.rs:99
+#: src/views/task/tasks_done_window.rs:110
 msgid "Done Tasks"
 msgstr "Tâches accomplies"
+
+#~ msgid "New features and updates"
+#~ msgstr "Nouvelles fonctionnalités et mises à jour"
+
+#, fuzzy
+#~ msgid "Code refactoring, Bug fixes, and UI improvements"
+#~ msgstr "Refonte du code et améliorations de l’interface"
+
+#, fuzzy
+#~ msgid "New Project create window"
+#~ msgstr "Nouveau projet"
+
+#, fuzzy
+#~ msgid "Scroll while dragging task"
+#~ msgstr "Erreur lors de l’importation des données"
+
+#, fuzzy
+#~ msgid ""
+#~ "Czech and French and Brazilian Portuguese Translations Added or updated "
+#~ "thanks to Amerey.eu, Irénée Thirion, and Fúlvio Leo"
+#~ msgstr "Ajout d’une traduction en portugais brésilien grâce à Fúlvio Leo"
+
+#~ msgid "Backing up system"
+#~ msgstr "Système de sauvegarde"
+
+#~ msgid ""
+#~ "Tasks can have date and reminders (Application will remain in background "
+#~ "for handling reminders)"
+#~ msgstr ""
+#~ "Les tâches peuvent avoir une date et des rappels associés (l’application "
+#~ "continuera de fonctionner en arrière-plan pour gérer les rappels)"
+
+#~ msgid "When a task doesn't have record, Timer button will move to options"
+#~ msgstr ""
+#~ "Lorsqu’une tâche n’a pas de chronomètre, le bouton du minuteur sera dans "
+#~ "les options"
+
+#~ msgid "Record edit window"
+#~ msgstr "Fenêtre de modification du chronomètre"
+
+#~ msgid "Now users able to edit record duration by changing start time"
+#~ msgstr ""
+#~ "L’utilisateur peut maintenant modifier la durée du chronomètre en "
+#~ "changeant l’heure de début"
+
+#~ msgid "Bug fixes, and UI improvements"
+#~ msgstr "Corrections de bogues et améliorations de l’interface"
+
+#~ msgid "Bug fix"
+#~ msgstr "Correction de bogues"
+
+#~ msgid "Code refactoring, and UI improvements"
+#~ msgstr "Refonte du code et améliorations de l’interface"
+
+#~ msgid "New widgets for selecting Date and Time"
+#~ msgstr "Nouveaux widgets pour sélectionner la date et l’heure"
+
+#~ msgid "Changing duration of the new record by setting end time"
+#~ msgstr ""
+#~ "Modification de la durée du nouveau chronomètre en définissant une heure "
+#~ "de fin"
+
+#~ msgid "Add Brazilian Portuguese Translation thanks to Fúlvio Leo"
+#~ msgstr "Ajout d’une traduction en portugais brésilien grâce à Fúlvio Leo"
+
+#~ msgid "Subtasks, Bug fixes, and UI improvements"
+#~ msgstr "Sous-tâches, corrections de bogues et améliorations d’interface"
+
+#~ msgid "Task Window which contains task info, subtasks, and records"
+#~ msgstr ""
+#~ "La fenêtre des tâches qui contient des informations sur les tâches, sous-"
+#~ "tâches"
+
+#~ msgid "Translation to Persian and Turkish languages thanks to Sabri Ünal"
+#~ msgstr "Traduction en perse et en turque grâce à Sabri Ünal"
+
+#~ msgid "New toast message for moving back task from the tasks done list"
+#~ msgstr ""
+#~ "Nouveau message pop-up lorsqu’une tâche est retirée de la liste des "
+#~ "tâches accomplies"
+
+#~ msgid ""
+#~ "Users are now able to pick emojis for their projects in the edit window"
+#~ msgstr ""
+#~ "L’utilisateur peut maintenant choisir des émojis pour ses projets dans la "
+#~ "fenêtre d’édition"
+
+#~ msgid "Projects and Tasks now can have descriptions"
+#~ msgstr "Les projets et tâches peuvent désormais avoir des descriptions"
+
+#~ msgid "Performance improvement and records window"
+#~ msgstr "Améliorations des performances et fenêtre des chronomètres"
+
+#~ msgid "Lazy loading for project tasks and stat"
+#~ msgstr "Chargement lent pour les tâches et statistiques des projets"
+
+#~ msgid "Records window for creating, editing, and deleting records"
+#~ msgstr ""
+#~ "Fenêtre des chronomètres pour créer, modifier et supprimer les "
+#~ "chronomètres"
+
+#~ msgid "First stable release."
+#~ msgstr "Première version stable."
+
+#, fuzzy
+#~ msgid "app.search"
+#~ msgstr "Chercher"
+
+#, fuzzy
+#~ msgid "calendar"
+#~ msgstr "Calendrier"
+
+#, fuzzy
+#~ msgid "app.backup"
+#~ msgstr "Sauvegarde"
+
+#, fuzzy
+#~ msgid "duration_label"
+#~ msgstr "Durée"
+
+#, fuzzy
+#~ msgid "delete_button"
+#~ msgstr "Supprimer"
+
+#, fuzzy
+#~ msgid "project_popover"
+#~ msgstr "Projet"
+
+#, fuzzy
+#~ msgid "start"
+#~ msgstr "Commence le"
+
+#, fuzzy
+#~ msgid "section.new"
+#~ msgstr "Nouveau chronomètre"
+
+#, fuzzy
+#~ msgid "project.edit"
+#~ msgstr "Projet"
+
+#, fuzzy
+#~ msgid "capture"
+#~ msgstr "Fonctionnalités :"
+
+#, fuzzy
+#~ msgid "cancel"
+#~ msgstr "Annuler"
+
+#~ msgid "Task"
+#~ msgstr "Tâche"
+
+#~ msgid "_Quit"
+#~ msgstr "_Quitter"
+
+#~ msgid "no records found"
+#~ msgstr "Aucun chronomètre trouvé"
+
+#~ msgid "Use add button up there or start a timer"
+#~ msgstr "Utilisez le bouton Ajouter ci-dessus ou démarrez un minuteur"
 
 #~ msgid "_New List"
 #~ msgstr "_Nouvelle liste"

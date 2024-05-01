@@ -1,12 +1,14 @@
 use adw;
 use adw::subclass::prelude::*;
 use adw::traits::{ActionRowExt, PreferencesRowExt};
+use glib::{once_cell::sync::Lazy, subclass::Signal};
+
 use gettextrs::gettext;
 use gtk::{glib, glib::Properties, prelude::*};
 use std::cell::RefCell;
 
-use crate::db::models::Record;
-use crate::db::operations::read_record;
+use crate::db::models::{Record, Task};
+use crate::db::operations::delete_record;
 use crate::views::record::RecordWindow;
 
 mod imp {
@@ -37,6 +39,16 @@ mod imp {
     }
 
     impl ObjectImpl for RecordRow {
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![
+                    Signal::builder("changed").build(),
+                    Signal::builder("deleted").build(),
+                ]
+            });
+            SIGNALS.as_ref()
+        }
+
         fn properties() -> &'static [glib::ParamSpec] {
             Self::derived_properties()
         }
@@ -58,7 +70,7 @@ mod imp {
 glib::wrapper! {
     pub struct RecordRow(ObjectSubclass<imp::RecordRow>)
         @extends gtk::Widget, gtk::ListBoxRow, adw::PreferencesRow, adw::ActionRow,
-        @implements gtk::Buildable;
+        @implements gtk::Accessible, gtk::Actionable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
 #[gtk::template_callbacks]
@@ -71,22 +83,20 @@ impl RecordRow {
 
     fn set_labels(&self) {
         let record = self.record();
-        let start = glib::DateTime::from_unix_local(record.start())
-            .expect("Failed to create glib::DateTime from Record::start");
+        let start = glib::DateTime::from_unix_local(record.start()).unwrap();
         let duration = record.duration();
 
         self.set_title(&Record::duration_display(duration));
 
-        let start_date_text = start.format("%B %e").unwrap();
+        let start_date_text = Task::date_display(&start);
         let end = start.add_seconds(duration as f64).unwrap();
-        let mut end_date_text = end.format("%B %e").unwrap().to_string();
-        end_date_text = if start_date_text == end_date_text {
+        let end_date_text = if start.ymd() == end.ymd() {
             String::new()
         } else {
-            format!("{end_date_text}, ")
+            format!("{} ", Task::date_display(&end))
         };
         self.set_subtitle(&format!(
-            "{}, {} {} {}{}",
+            "{} {} {} {}{}",
             start_date_text,
             start.format("%H:%M").unwrap(),
             gettext("until"),
@@ -95,38 +105,27 @@ impl RecordRow {
         ));
     }
 
-    fn refresh(&self) {
-        self.set_labels();
-        if self.parent().is_some() {
-            self.activate_action("task.duration-update", None)
-                .expect("Failed to send task.duration-update action");
-        }
-    }
-
     #[template_callback]
     fn handle_activated(&self) {
         let win = self.root().and_downcast::<gtk::Window>().unwrap();
         let modal = RecordWindow::new(&win.application().unwrap(), &win, self.record(), true);
         modal.present();
-        modal.connect_close_request(
-            glib::clone!(@weak self as obj => @default-return gtk::Inhibit(false), move |_| {
-                match read_record(obj.record().id()) {
-                    Ok(reminder) => {
-                        obj.set_record(reminder);
-                        obj.refresh();
-                    }
-                    Err(err) => match err {
-                        rusqlite::Error::QueryReturnedNoRows  => {
-                            obj.activate_action("record.delete", None)
-                                .expect("Failed to send record.delete action");
-                            let records_box = obj.parent().and_downcast::<gtk::ListBox>().unwrap();
-                            records_box.remove(&obj);
-                        },
-                        err => panic!("{err}")
-                    }
-                }
-                gtk::Inhibit(false)
+        modal.connect_closure(
+            "record-updated",
+            true,
+            glib::closure_local!(@watch self as obj => move |_win: RecordWindow, record: Record| {
+                obj.set_record(record);
+                obj.set_labels();
+                obj.changed();
+                obj.emit_by_name::<()>("changed", &[]);
             }),
         );
+    }
+
+    #[template_callback]
+    fn handle_delete_button_clicked(&self, _: gtk::Button) {
+        let record = self.record();
+        delete_record(record.id()).unwrap();
+        self.emit_by_name::<()>("deleted", &[]);
     }
 }

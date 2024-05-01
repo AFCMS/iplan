@@ -5,11 +5,12 @@ use std::cell::RefCell;
 
 use crate::db::models::{Section, Task};
 use crate::db::operations::{
-    create_task, delete_section, read_section, read_tasks, update_section, update_task,
+    create_task, delete_section, new_task_position, read_section, read_tasks, update_section,
 };
 use crate::views::project::ProjectLayout;
+use crate::views::snippets::MenuItem;
 use crate::views::task::{TaskRow, TaskWindow, TasksBox, TasksBoxWrapper, TasksDoneWindow};
-use crate::views::IPlanWindow;
+use crate::views::{ActionScope, IPlanWindow};
 
 mod imp {
     use super::*;
@@ -34,8 +35,6 @@ mod imp {
         pub tasks_box: TemplateChild<TasksBox>,
         #[template_child]
         pub options_popover: TemplateChild<gtk::Popover>,
-        #[template_child]
-        pub show_done_tasks_button: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -45,43 +44,53 @@ mod imp {
         type ParentType = gtk::Box;
 
         fn class_init(klass: &mut Self::Class) {
+            MenuItem::ensure_type();
             klass.bind_template();
             klass.bind_template_instance_callbacks();
-            klass.install_action("task.check", Some("i"), move |obj, _, value| {
-                let imp = obj.imp();
-                let value: i32 = value.unwrap().get().unwrap();
-                let index = value as u32;
-                let row = imp.tasks_box.item_by_index(index).unwrap();
-                let task = row.task();
-                if index != 0 {
-                    let upper_row = imp.tasks_box.item_by_index(index - 1);
-                    if let Some(upper_row) = upper_row {
-                        upper_row.grab_focus();
-                    }
-                }
-                imp.tasks_box.remove_item(&row);
+            klass.install_action(
+                "task.changed",
+                Some(Task::static_variant_type().as_str()),
+                move |obj, _, value| {
+                    let imp = obj.imp();
+                    let task: Task = value.unwrap().get().unwrap();
 
-                let mut toast_name = task.name();
-                if toast_name.chars().count() > 15 {
-                    toast_name.truncate(15);
-                    toast_name.push_str("...");
-                }
-                let toast = adw::Toast::builder()
-                    .title(
-                        gettext("\"{}\" moved to the done tasks section")
-                            .replace("{}", &toast_name),
-                    )
-                    .button_label(gettext("Undo"))
-                    .build();
-                toast.connect_button_clicked(glib::clone!(@weak obj, @weak task, @strong row =>
-                    move |_toast| {
-                        task.set_done(false);
-                        update_task(&task).expect("Failed to update task");
-                        obj.imp().tasks_box.add_item(&row);
-                }));
-                let window = obj.root().and_downcast::<IPlanWindow>().unwrap();
-                window.imp().toast_overlay.add_toast(toast);
-            });
+                    obj.activate_task_action("task.changed", &task);
+
+                    if !task.done() {
+                        return;
+                    }
+
+                    let row = imp.tasks_box.item_by_id(task.id()).unwrap();
+                    let index = row.index() as u32;
+                    if index != 0 {
+                        let upper_row = imp.tasks_box.item_by_index(index - 1);
+                        if let Some(upper_row) = upper_row {
+                            upper_row.grab_focus();
+                        }
+                    }
+                    imp.tasks_box.remove_item(&row);
+
+                    let mut toast_name = task.name();
+                    if let Some((i, _)) = toast_name.char_indices().nth(14) {
+                        toast_name.truncate(i);
+                        toast_name.push_str("...");
+                    }
+                    let toast = adw::Toast::builder()
+                        .title(
+                            gettext("“{}” moved to the done tasks list").replace("{}", &toast_name),
+                        )
+                        .button_label(gettext("Undo"))
+                        .build();
+                    toast.connect_button_clicked(
+                        glib::clone!(@weak obj, @strong row => move |_toast| {
+                            obj.imp().tasks_box.add_item(&row);
+                            row.imp().checkbox.set_active(false);
+                        }),
+                    );
+                    let window = obj.root().and_downcast::<IPlanWindow>().unwrap();
+                    window.imp().toast_overlay.add_toast(toast);
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -125,7 +134,7 @@ impl SectionBox {
         let imp = obj.imp();
         let section = obj.section();
 
-        imp.name_entry.buffer().set_text(&section.name());
+        imp.name_entry.buffer().set_text(section.name());
 
         let tasks = read_tasks(
             Some(section.project()),
@@ -133,19 +142,29 @@ impl SectionBox {
             Some(false),
             Some(0),
             None,
+            false,
         )
-        .expect("Failed to read tasks");
+        .unwrap();
 
-        if layout == ProjectLayout::Horizontal {
-            imp.tasks_box.send_hscroll();
-        } else {
-            imp.tasks_box.set_scrollable(false);
-        }
+        obj.set_layout(&layout);
         imp.tasks_box
             .set_items_wrapper(TasksBoxWrapper::Section(section.id(), section.project()));
         imp.tasks_box.add_tasks_lazy(tasks, max_height);
 
         obj
+    }
+
+    pub fn set_layout(&self, layout: &ProjectLayout) {
+        let imp = self.imp();
+        if layout == &ProjectLayout::Horizontal {
+            imp.tasks_box.set_scrollable(true);
+        } else {
+            imp.tasks_box.set_scrollable(false);
+            let mut lazy_tasks = imp.tasks_box.imp().lazy_tasks.borrow_mut();
+            for _ in 0..lazy_tasks.len() {
+                imp.tasks_box.add_task(lazy_tasks.pop().unwrap());
+            }
+        }
     }
 
     pub fn select_task(&self, target_task: Task) {
@@ -197,25 +216,60 @@ impl SectionBox {
         self.add_controller(section_drop_target);
     }
 
+    fn activate_task_action(&self, name: &str, task: &Task) {
+        let project_id = self.section().project();
+        self.parent()
+            .unwrap()
+            .activate_action(
+                name,
+                Some(&glib::Variant::from((
+                    task.to_variant(),
+                    ActionScope::Project(project_id).to_variant(),
+                ))),
+            )
+            .unwrap();
+    }
+
     #[template_callback]
     fn task_activated(&self, row: TaskRow, tasks_box: gtk::ListBox) {
         let win = self.root().and_downcast::<gtk::Window>().unwrap();
         let modal = TaskWindow::new(&win.application().unwrap(), &win, row.task());
         modal.present();
-        row.cancel_timer();
-        modal.connect_closure(
-            "task-window-close",
-            true,
-            glib::closure_local!(@watch row => move |_win: TaskWindow, task: Task| {
+        modal.connect_close_request(
+            glib::clone!(@weak row => @default-return glib::Propagation::Proceed, move |_| {
+                let task = row.task();
                 if task.done() {
-                    tasks_box.remove(row);
-                } else {
-                    row.reset(task);
+                    tasks_box.remove(&row);
+                } else if task.suspended() {
                     row.changed();
-                    row.activate_action("project.update", None).expect("Failed to send project.update signal");
                 }
-            }
-        ));
+                glib::Propagation::Proceed
+            }),
+        );
+        modal.connect_closure(
+            "task-changed",
+            true,
+            glib::closure_local!(@watch self as obj, @weak-allow-none row => move |_win: TaskWindow, changed_task: Task| {
+                let row = row.unwrap();
+                let task = row.task();
+                let task_id = task.id();
+                obj.activate_task_action("task.changed", &changed_task);
+                if task_id == changed_task.id() {
+                    row.reset(changed_task);
+                } else if task_id == changed_task.parent() {
+                    row.reset_subtasks();
+                }
+            }),
+        );
+        modal.connect_closure(
+            "task-duration-changed",
+            true,
+            glib::closure_local!(@watch self as obj, @weak-allow-none row => move |_win: TaskWindow, task: Task| {
+                let row = row.unwrap();
+                obj.activate_action("task.duration-changed", Some(&task.to_variant())).unwrap();
+                row.refresh_timer();
+            }),
+        );
     }
 
     #[template_callback]
@@ -236,8 +290,13 @@ impl SectionBox {
     #[template_callback]
     fn handle_new_button_clicked(&self, _button: gtk::Button) {
         let section = self.section();
-        let task =
-            create_task("", section.project(), section.id(), 0).expect("Failed to create task");
+        let section_id = section.id();
+        let task = create_task(Task::new(&[
+            ("project", &section.project()),
+            ("section", &section_id),
+            ("position", &new_task_position(section_id)),
+        ]))
+        .unwrap();
         self.imp().tasks_box.add_fresh_task(task);
     }
 
@@ -250,7 +309,7 @@ impl SectionBox {
                 .object::<adw::MessageDialog>("dialog")
                 .unwrap();
         dialog.set_transient_for(self.root().and_downcast::<gtk::Window>().as_ref());
-        let dialog_heading = gettext("Delete \"{}\" section?");
+        let dialog_heading = gettext("Delete “{}” section?");
         dialog.set_heading(Some(&dialog_heading.replace("{}", &self.section().name())));
         dialog.set_body(&gettext(
             "The section and its tasks will be permanently lost.",
@@ -266,8 +325,8 @@ impl SectionBox {
                     let placeholder = obj.root()
                         .and_downcast::<IPlanWindow>()
                         .unwrap()
-                        .imp()
-                        .project_lists
+                        .visible_project_page()
+                        .unwrap()
                         .imp()
                         .placeholder
                         .get();

@@ -1,14 +1,17 @@
 use gettextrs::gettext;
-use gtk::{gdk, glib, glib::Properties, prelude::*, subclass::prelude::*};
+use gtk::glib::{self, Properties};
+use gtk::{gdk, prelude::*, subclass::prelude::*};
+use linkify::{LinkFinder, LinkKind};
 use std::cell::{Cell, RefCell};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
 use crate::db::models::{Record, Task};
 use crate::db::operations::{
-    create_record, delete_task, read_project, read_reminders, read_task, read_tasks, update_record,
-    update_task,
+    create_record, delete_task, read_project, read_reminders, read_subtasks_summary, read_task,
+    update_record, update_task,
 };
+use crate::views::snippets::MenuItem;
 use crate::views::task::{SubtaskRow, TaskWindow, TasksDoneWindow};
 use crate::views::IPlanWindow;
 
@@ -24,6 +27,7 @@ pub struct DragBackup {
     position: i32,
     section: i64,
     parent_task: i64,
+    date: i64,
     parent_widget: gtk::ListBox,
 }
 
@@ -43,12 +47,12 @@ mod imp {
         #[property(get, set)]
         pub compact: Cell<bool>,
         #[property(get, set)]
-        pub lazy: Cell<bool>,
-        #[property(get, set)]
         pub visible_project_label: Cell<bool>,
         #[property(get, set)]
         pub draggable: Cell<bool>,
         pub drag_backup: Cell<Option<DragBackup>>,
+        #[property(get, set)]
+        pub hide_move_arrows: Cell<bool>,
         #[template_child]
         pub row_box: TemplateChild<gtk::Box>,
         #[template_child]
@@ -61,19 +65,21 @@ mod imp {
         pub name_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub name_entry: TemplateChild<gtk::Entry>,
-        #[template_child]
-        pub name_entry_buffer: TemplateChild<gtk::EntryBuffer>,
         pub timer_status: Cell<TimerStatus>,
         #[template_child]
-        pub timer_button: TemplateChild<gtk::Button>,
+        pub timer_button: TemplateChild<MenuItem>,
         #[template_child]
-        pub timer_button_content: TemplateChild<adw::ButtonContent>,
+        pub timer_separator: TemplateChild<gtk::Separator>,
         #[template_child]
         pub options_button: TemplateChild<gtk::MenuButton>,
         #[template_child]
         pub options_popover: TemplateChild<gtk::Popover>,
         #[template_child]
         pub options_box: TemplateChild<gtk::Box>,
+        #[template_child]
+        pub move_up_button: TemplateChild<gtk::Button>,
+        #[template_child]
+        pub move_down_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub description: TemplateChild<gtk::Label>,
         #[template_child]
@@ -99,6 +105,7 @@ mod imp {
         type ParentType = gtk::ListBoxRow;
 
         fn class_init(klass: &mut Self::Class) {
+            MenuItem::ensure_type();
             klass.bind_template();
             klass.bind_template_instance_callbacks();
         }
@@ -168,26 +175,13 @@ impl TaskRow {
         obj.set_compact(compact);
         obj.set_visible_project_label(visible_project_label);
         obj.reset(task);
+        obj.reset_timer();
         obj.set_draggable(true);
-        obj
-    }
-
-    pub fn new_lazy(task: &Task, visible_project_label: bool) -> Self {
-        let obj = glib::Object::new::<Self>();
-        obj.set_visible_project_label(visible_project_label);
-        obj.set_task(task);
-        obj.set_lazy(true);
-        obj.set_draggable(true);
-        obj.connect_lazy_notify(|obj| {
-            let task = obj.task();
-            obj.reset(task);
-        });
         obj
     }
 
     pub fn reset(&self, task: Task) {
         let imp = self.imp();
-        imp.name_entry_buffer.set_text(task.name());
 
         if self.compact() {
             self.remove_css_class("card");
@@ -197,17 +191,31 @@ impl TaskRow {
             imp.footer.set_visible(false);
         } else {
             let task_description = task.description();
-            let task_description = task_description.trim();
+            let task_description = task_description.trim().to_string();
+
             if task_description.is_empty() {
                 imp.body.set_visible(false);
             } else {
-                imp.description.set_label(task_description);
+                let link_finder = LinkFinder::new();
+                let mut markup_description = String::new();
+                link_finder.spans(&task_description).for_each(|span| {
+                    if let Some(kind) = span.kind() {
+                        if kind == &LinkKind::Url {
+                            let link_text = span.as_str();
+                            markup_description
+                                .push_str(&format!("<a href='{}'>{}</a>", link_text, link_text));
+                            return;
+                        }
+                    }
+                    markup_description.push_str(span.as_str())
+                });
+                imp.description.set_markup(&markup_description);
+                imp.description.set_tooltip_text(Some(&task_description));
                 imp.body.set_visible(true);
             }
 
             if let Some(datetime) = task.date_datetime() {
-                imp.date_indicator
-                    .set_label(&datetime.format("%A").unwrap());
+                imp.date_indicator.set_label(&Task::date_display(&datetime));
                 imp.date_indicator.set_visible(true);
             } else {
                 imp.date_indicator.set_visible(false);
@@ -252,8 +260,9 @@ impl TaskRow {
             }
         }
 
+        let task_name = task.name();
         self.set_task(task);
-        self.reset_timer();
+        imp.name_entry.buffer().set_text(task_name);
         if !self.compact() {
             self.reset_subtasks();
         }
@@ -263,21 +272,17 @@ impl TaskRow {
         let imp = self.imp();
         let task = self.task();
 
-        loop {
-            if let Some(subtask) = imp.subtasks.first_child() {
-                imp.subtasks.remove(&subtask);
-            } else {
-                break;
-            }
+        while let Some(subtask) = imp.subtasks.first_child() {
+            imp.subtasks.remove(&subtask);
         }
 
-        let subtasks = read_tasks(None, None, None, Some(task.id()), None).unwrap();
+        let subtasks = read_subtasks_summary(task.id()).unwrap();
         if subtasks.is_empty() {
             imp.subtasks.set_visible(false);
         } else {
             imp.subtasks.set_visible(true);
-            for subtask in subtasks {
-                let subtask_row = SubtaskRow::new(subtask);
+            for (name, done) in subtasks {
+                let subtask_row = SubtaskRow::new(name, done);
                 imp.subtasks.append(&subtask_row);
             }
         }
@@ -286,13 +291,13 @@ impl TaskRow {
     pub fn add_subtask(&self, subtask: Task) {
         let imp = self.imp();
         imp.subtasks.set_visible(true);
-        let subtask_row = SubtaskRow::new(subtask);
+        let subtask_row = SubtaskRow::new(subtask.name(), subtask.done());
         imp.subtasks.prepend(&subtask_row);
     }
 
     pub fn cancel_timer(&self) {
         self.imp().timer_status.set(TimerStatus::Cancel);
-        self.move_timer_button(false);
+        self.refresh_timer(); // FIXME: restore previous label
     }
 
     pub fn reset_timer(&self) {
@@ -303,22 +308,25 @@ impl TaskRow {
             record.set_duration(glib::DateTime::now_local().unwrap().to_unix() - record.start());
             self.start_timer(record);
         } else {
-            let duration = task.duration();
-            if duration == 0 {
-                imp.timer_button_content.set_label(&gettext("Start _timer"));
-            } else {
-                imp.timer_button_content
-                    .set_label(&Record::duration_display(duration));
-                self.move_timer_button(true);
-            }
+            self.refresh_timer();
         }
     }
 
     pub fn refresh_timer(&self) {
         let imp = self.imp();
-        if imp.timer_status.get() != TimerStatus::On {
-            imp.timer_button_content
-                .set_label(&self.task().duration_display());
+
+        if imp.timer_status.get() == TimerStatus::On {
+            return;
+        }
+
+        let duration = self.task().duration();
+        if duration == 0 {
+            imp.timer_button.set_label(gettext("Start _Timer"));
+            self.move_timer_button(false);
+        } else {
+            imp.timer_button
+                .set_label(Record::duration_display(duration));
+            self.move_timer_button(true);
         }
     }
 
@@ -329,6 +337,7 @@ impl TaskRow {
         task.set_position(drag_backup.position);
         task.set_section(drag_backup.section);
         task.set_parent(drag_backup.parent_task);
+        task.set_date(drag_backup.date);
         let parent = self.parent().and_downcast::<gtk::ListBox>().unwrap();
         if parent != drag_backup.parent_widget {
             parent.remove(self);
@@ -360,7 +369,7 @@ impl TaskRow {
                 if active {
                     imp.timer_status.set(TimerStatus::Off);
                 }
-                obj.activate_action("task.check", Some(&obj.index().to_variant()))
+                obj.activate_action("task.changed", Some(&task.to_variant()))
                     .unwrap();
                 Some(active)
             })
@@ -371,6 +380,25 @@ impl TaskRow {
         task.bind_property("done", &imp.timer_button.get(), "sensitive")
             .sync_create()
             .invert_boolean()
+            .build();
+
+        self.connect_hide_move_arrows_notify(|obj| {
+            let imp = obj.imp();
+            let visible = !obj.hide_move_arrows();
+            imp.move_up_button.set_visible(visible);
+            imp.move_down_button.set_visible(visible);
+            imp.move_down_button
+                .next_sibling()
+                .and_downcast::<gtk::Separator>()
+                .unwrap()
+                .set_visible(visible);
+        });
+
+        task.bind_property("id", &imp.move_up_button.get(), "action-target")
+            .transform_to(|_, id: i64| Some(id.to_variant()))
+            .build();
+        task.bind_property("id", &imp.move_down_button.get(), "action-target")
+            .transform_to(|_, id: i64| Some(id.to_variant()))
             .build();
     }
 
@@ -386,12 +414,14 @@ impl TaskRow {
         let task = self.task();
         let text = entry.text();
 
-        if task.id() == 0 || task.name() == text {
+        if text == task.name() {
             return;
         }
 
         task.set_name(text);
         update_task(&task).unwrap();
+        self.activate_action("task.changed", Some(&task.to_variant()))
+            .unwrap();
     }
 
     #[template_callback]
@@ -407,39 +437,42 @@ impl TaskRow {
     fn cancel_edit_name(&self) {
         let imp = self.imp();
         let name = self.backup_task_name();
-        let task = self.task();
-        imp.name_entry.buffer().set_text(&name);
+        imp.name_entry.buffer().set_text(name);
         imp.name_button.set_visible(true);
-        task.set_name(name);
-        update_task(&task).unwrap();
     }
 
     fn move_timer_button(&self, indicate: bool) {
         let imp = self.imp();
-        let button: &gtk::Button = imp.timer_button.as_ref();
+        let button: &MenuItem = imp.timer_button.as_ref();
         let options_box: &gtk::Box = imp.options_box.as_ref();
         if indicate {
             let options_button: &gtk::MenuButton = imp.options_button.as_ref();
             let header: &gtk::Box = imp.header.as_ref();
             button.unparent();
             options_button.popdown();
-            button.remove_css_class("flat");
             button.insert_before(header, Some(options_button));
+            imp.timer_separator.set_visible(false);
         } else {
-            button.add_css_class("flat");
             button.unparent();
             options_box.prepend(button);
+            imp.timer_separator.set_visible(true);
         }
     }
 
-    fn start_timer(&self, record: Record) {
+    pub fn start_timer(&self, record: Record) {
         let imp = self.imp();
-        let button: &gtk::Button = imp.timer_button.as_ref();
+
+        if imp.timer_status.get() == TimerStatus::On {
+            return;
+        }
+
+        let button: &MenuItem = imp.timer_button.as_ref();
         imp.timer_status.set(TimerStatus::On);
         button.add_css_class("destructive-action");
+        button.remove_css_class("flat");
         self.move_timer_button(true);
 
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         let duration = Duration::from_secs(record.duration() as u64);
         let start = SystemTime::now().checked_sub(duration).unwrap();
         thread::spawn(move || loop {
@@ -448,33 +481,33 @@ impl TaskRow {
             }
             thread::sleep(Duration::from_secs_f32(0.3));
         });
-        rx.attach(None,glib::clone!(@weak button, @weak self as obj => @default-return glib::Continue(false),
+        rx.attach(None,glib::clone!(@weak button, @weak self as obj => @default-return glib::ControlFlow::Break,
             move |duration| {
                 let imp = obj.imp();
                 match imp.timer_status.get() {
                     TimerStatus::On => {
-                        let button_content = button.child()
-                            .and_downcast::<adw::ButtonContent>()
-                            .unwrap();
-                        button_content.set_label(
-                            &Record::duration_display(duration as i64)
+                        button.set_label(
+                            Record::duration_display(duration as i64)
                         );
-                        glib::Continue(true)
+                        glib::ControlFlow::Continue
                     },
                     TimerStatus::Off => {
                         button.remove_css_class("destructive-action");
+                        button.add_css_class("flat");
                         record.set_duration(glib::DateTime::now_local().unwrap().to_unix() - record.start());
                         update_record(&record).expect("Failed to update record");
-                        imp.timer_button_content.set_label(&obj.task().duration_display());
+                        let task = obj.task();
+                        imp.timer_button.set_label(task.duration_display());
                         if obj.parent().is_some() {
-                            obj.activate_action("project.update", None)
-                                .expect("Failed to send project.update");
+                            obj.activate_action("timer.stop", Some(&task.to_variant())).unwrap();
+                            obj.activate_action("task.duration-changed", Some(&task.to_variant())).unwrap();
                         }
-                        glib::Continue(false)
+                        glib::ControlFlow::Break
                     },
                     TimerStatus::Cancel => {
                         button.remove_css_class("destructive-action");
-                        glib::Continue(false)
+                        button.add_css_class("flat");
+                        glib::ControlFlow::Break
                     }
                 }
             }
@@ -485,12 +518,20 @@ impl TaskRow {
     #[template_callback]
     fn handle_timer_button_clicked(&self, _button: &gtk::Button) {
         let task = self.task();
-        let record = task.incomplete_record().unwrap_or_else(|| {
-            create_record(glib::DateTime::now_local().unwrap().to_unix(), task.id(), 0)
-                .expect("Failed to create record")
-        });
         if self.imp().timer_status.get() != TimerStatus::On {
+            let record = task.incomplete_record().unwrap_or_else(|| {
+                create_record(glib::DateTime::now_local().unwrap().to_unix(), task.id(), 0).unwrap()
+            });
+            let record_variant = record.to_variant();
             self.start_timer(record);
+            self.activate_action(
+                "timer.start",
+                Some(&glib::Variant::from((
+                    self.task().to_variant(),
+                    record_variant,
+                ))),
+            )
+            .unwrap();
         } else {
             self.imp().timer_status.set(TimerStatus::Off);
         }
@@ -500,60 +541,58 @@ impl TaskRow {
     fn handle_delete_button_clicked(&self, _button: gtk::Button) {
         let task = self.task();
         let mut toast_name = task.name();
-        if toast_name.chars().count() > 15 {
-            toast_name.truncate(15);
+        if let Some((i, _)) = toast_name.char_indices().nth(14) {
+            toast_name.truncate(i);
             toast_name.push_str("...");
         }
         let toast = adw::Toast::builder()
-            .title(gettext("\"{}\" is going to delete").replace("{}", &toast_name))
+            .title(gettext("“{}” is going to delete").replace("{}", &toast_name))
             .button_label(gettext("Undo"))
             .build();
 
-        toast.connect_button_clicked(glib::clone!(@weak self as obj =>
-            move |_toast| {
-                let task = obj.task();
-                task.set_property("suspended", false);
-                update_task(&task).expect("Failed to update task");
-                if obj.parent().is_some() {
-                    obj.changed();
-                    obj.grab_focus();
-                }
+        toast.connect_button_clicked(glib::clone!(@weak self as obj => move |_toast| {
+            let task = obj.task();
+            task.set_suspended(false);
+            update_task(&task).expect("Failed to update task");
+            if obj.parent().is_some() {
+                obj.changed();
+                obj.grab_focus();
+            }
         }));
         toast.connect_dismissed(glib::clone!(@strong self as obj =>
             move |_toast| {
                 let task = obj.task();
                 if task.suspended() {    // Checking Undo button
-                    delete_task(&task).unwrap();
+                    delete_task(task.id()).unwrap();
                 }
             }
         ));
+
         task.set_suspended(true);
-        self.set_task(&task);
         update_task(&task).expect("Failed to update task");
+        self.activate_action("task.changed", Some(&task.to_variant()))
+            .unwrap();
         self.changed();
+
         let window = self.root().unwrap();
         match window.widget_name().as_str() {
             "IPlanWindow" => {
                 window
                     .downcast::<IPlanWindow>()
                     .unwrap()
-                    .imp()
-                    .toast_overlay
-                    .add_toast(toast);
+                    .add_delete_toast(&task, toast);
             }
-            "ProjectDoneTasksWindow" => {
+            "TasksDoneWindow" => {
                 window
                     .downcast::<TasksDoneWindow>()
                     .unwrap()
-                    .imp()
-                    .toast_overlay
-                    .add_toast(toast);
+                    .add_delete_toast(&task, toast);
             }
             "TaskWindow" => {
                 window
                     .downcast::<TaskWindow>()
                     .unwrap()
-                    .add_toast(task, toast);
+                    .add_delete_toast(&task, toast);
             }
             _ => unimplemented!(),
         }
@@ -561,9 +600,7 @@ impl TaskRow {
 
     #[template_callback]
     fn handle_drag_prepare(&self, _x: f64, _y: f64) -> Option<gdk::ContentProvider> {
-        if !self.draggable() {
-            None
-        } else if self.imp().name_entry.get_visible() {
+        if !self.draggable() || self.imp().name_entry.get_visible() {
             None
         } else {
             Some(gdk::ContentProvider::for_value(&self.to_value()))
@@ -579,7 +616,7 @@ impl TaskRow {
         label
             .last_child()
             .unwrap()
-            .set_property("label", &self.task().name());
+            .set_property("label", self.task().name());
         drag_icon.set_child(Some(&label));
         self.add_css_class("dragged");
         drag.set_hotspot(0, 0);
@@ -588,6 +625,7 @@ impl TaskRow {
             position: task.position(),
             section: task.section(),
             parent_task: task.parent(),
+            date: task.date(),
             parent_widget: self.parent().and_downcast::<gtk::ListBox>().unwrap(),
         }))
     }

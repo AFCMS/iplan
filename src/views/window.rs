@@ -20,13 +20,54 @@
 
 use adw::subclass::prelude::*;
 use gettextrs::gettext;
+use gtk::glib::FromVariant;
 use gtk::{gdk, gio, glib, glib::Properties, prelude::*};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
-use crate::db::models::Project;
+use crate::db::models::{Project, Record, Task};
 use crate::db::operations::{create_project, create_section, read_projects};
-use crate::views::project::{ProjectEditWindow, ProjectHeader, ProjectLayout, ProjectLists};
-use crate::views::{calendar::Calendar, sidebar::SidebarProjects};
+use crate::views::project::{ProjectEditWindow, ProjectLayout, ProjectPage};
+use crate::views::snippets::MenuItem;
+use crate::views::{calendar::CalendarPage, sidebar::SidebarProjects};
+
+#[derive(PartialEq, Debug)]
+pub enum ActionScope {
+    DeleteToast,
+    Project(i64),
+    Calendar,
+    None,
+}
+
+impl StaticVariantType for ActionScope {
+    fn static_variant_type() -> std::borrow::Cow<'static, glib::VariantTy> {
+        std::borrow::Cow::from(glib::VariantTy::new("(yx)").unwrap())
+    }
+}
+
+impl ToVariant for ActionScope {
+    fn to_variant(&self) -> glib::Variant {
+        let data: (u8, i64) = match self {
+            ActionScope::None => (0, 0),
+            ActionScope::Calendar => (1, 0),
+            ActionScope::Project(id) => (2, *id),
+            ActionScope::DeleteToast => (3, 0),
+        };
+        data.to_variant()
+    }
+}
+
+impl FromVariant for ActionScope {
+    fn from_variant(variant: &glib::Variant) -> Option<Self> {
+        let (target, param): (u8, i64) = variant.get().unwrap();
+        match target {
+            0 => Some(ActionScope::None),
+            1 => Some(ActionScope::Calendar),
+            2 => Some(ActionScope::Project(param)),
+            3 => Some(ActionScope::DeleteToast),
+            _ => None,
+        }
+    }
+}
 
 mod imp {
     use super::*;
@@ -37,20 +78,18 @@ mod imp {
     pub struct IPlanWindow {
         #[property(get, set)]
         pub settings: RefCell<Option<gio::Settings>>,
-        #[property(get, set)]
-        pub project: RefCell<Project>,
+        #[property(get, set, name = "project-layout")]
+        pub project_layout: Cell<i32>,
         #[template_child]
-        pub project_layout_button: TemplateChild<gtk::Button>,
+        pub flap: TemplateChild<adw::Flap>,
         #[template_child]
         pub sidebar_projects: TemplateChild<SidebarProjects>,
         #[template_child]
-        pub project_header: TemplateChild<ProjectHeader>,
-        #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
-        pub project_lists: TemplateChild<ProjectLists>,
+        pub stack_pages: TemplateChild<gtk::Stack>,
         #[template_child]
-        pub calendar: TemplateChild<Calendar>,
+        pub calendar: TemplateChild<CalendarPage>,
         #[template_child]
         pub calendar_button: TemplateChild<gtk::Button>,
     }
@@ -62,51 +101,169 @@ mod imp {
         type ParentType = adw::ApplicationWindow;
 
         fn class_init(klass: &mut Self::Class) {
+            MenuItem::ensure_type();
             klass.bind_template();
             klass.bind_template_instance_callbacks();
-            klass.install_action("project.open", None, move |win, _, _| {
-                let imp = win.imp();
-                let project = win.project();
-                imp.project_header.open_project(&project);
-                imp.project_lists.open_project(project.id());
-                imp.project_lists.select_task(None);
-                imp.sidebar_projects.check_archive_hidden();
-                win.close_calendar();
+            klass.install_action(
+                "project.open",
+                Some(&Project::static_variant_type_string()),
+                move |obj, _, value| {
+                    let project = Project::try_from(value.unwrap()).unwrap();
+
+                    obj.close_sidebar();
+
+                    if obj.is_visible_project(project.id()) {
+                        return;
+                    }
+
+                    obj.change_project(project); // FIXME: Inside check_project called select_active_project. this unnecessary if the action is sent via sidebar projects
+                },
+            );
+            klass.install_action("project.edit", None, move |obj, _, _| {
+                // FIXME: send project via action
+                let modal = ProjectEditWindow::new(obj.application().unwrap(), obj, obj.visible_project().unwrap());
+                modal.connect_closure(
+                    "changed",
+                    true,
+                    glib::closure_local!(@watch obj => move |_: ProjectEditWindow, project: Project| {
+                        if let Some(page) = obj.visible_project_page() {
+                            page.imp().project_header.open_project(&project);
+                        }
+                        obj.imp().sidebar_projects.update_project(&project);
+                    })
+                );
+                modal.present();
             });
-            klass.install_action("project.edit", None, move |win, _, _| {
-                let window = ProjectEditWindow::new(win.application().unwrap(), win, win.project());
-                window.present();
+            klass.install_action("project.delete", None, move |obj, _, _| {
+                // FIXME: send project via action
+                let projects_section = &obj.imp().sidebar_projects;
+                projects_section.delete_project(obj.visible_project_id().unwrap());
+                let home_project = obj.home_project();
+                obj.imp()
+                    .stack_pages
+                    .remove(&obj.visible_project_page().unwrap());
+                obj.change_project(home_project);
             });
-            klass.install_action("project.update", None, move |win, _, _| {
-                let imp = win.imp();
-                if imp.calendar.is_visible() {
-                    return;
-                }
-                let project = win.project();
-                imp.project_header.open_project(&project);
-                imp.sidebar_projects.update_project(&project);
+            klass.install_action("section.new", None, move |obj, _, _| {
+                // FIXME: send project via action
+                obj.visible_project_page()
+                    .unwrap()
+                    .new_section(obj.visible_project_id().unwrap());
             });
-            klass.install_action("project.delete", None, move |win, _, _| {
-                let projects_section = &win.imp().sidebar_projects;
-                projects_section.delete_project(win.project().index());
-                let projects = read_projects(true).expect("Failed to read projects");
-                let home_project = if let Some(project) = projects.get(0) {
-                    project.clone()
-                } else {
-                    let project = create_project(&gettext("Personal"), "", "")
-                        .expect("Failed to create project");
-                    create_section(&gettext("Tasks"), project.id()).unwrap();
-                    project
-                };
-                win.set_project(home_project);
-                projects_section.select_active_project();
-                win.activate_action("project.open", None)
-                    .expect("Failed to send project.open action");
-            });
-            klass.install_action("section.new", None, move |win, _, _| {
-                let imp = win.imp();
-                imp.project_lists.new_section(win.project().id());
-            });
+            klass.install_action(
+                "task.changed",
+                Some(&format!(
+                    "({}{})",
+                    Task::static_variant_type().as_str(),
+                    ActionScope::static_variant_type().as_str()
+                )),
+                |obj, _, value| {
+                    let (task, scope): (Task, ActionScope) = value.unwrap().get().unwrap();
+                    let imp = obj.imp();
+
+                    let update_project_page = || {
+                        let page_name = task.project().to_string();
+                        if let Some(page) = imp.stack_pages.child_by_name(&page_name) {
+                            let page = page.downcast::<ProjectPage>().unwrap();
+                            page.reset_task(task.clone());
+                        }
+                    };
+
+                    match scope {
+                        ActionScope::DeleteToast => {
+                            task.set_suspended(false);
+                            update_project_page();
+                            imp.calendar.set_subtasks_suspended(task.id(), false);
+                            imp.calendar.reset_task(task);
+                        }
+                        ActionScope::Project(_) => imp.calendar.reset_task(task),
+                        ActionScope::Calendar => update_project_page(),
+                        ActionScope::None => {
+                            update_project_page();
+                            imp.calendar.reset_task(task);
+                        }
+                    }
+                },
+            );
+            klass.install_action(
+                "task.duration-changed",
+                Some(&format!(
+                    "({}{})",
+                    Task::static_variant_type().as_str(),
+                    ActionScope::static_variant_type().as_str()
+                )),
+                move |obj: &super::IPlanWindow, _, value| {
+                    let (task, scope): (Task, ActionScope) = value.unwrap().get().unwrap();
+                    let imp = obj.imp();
+
+                    let update_project_page = || {
+                        let page_name = task.project().to_string();
+                        if let Some(page) = imp.stack_pages.child_by_name(&page_name) {
+                            let page = page.downcast::<ProjectPage>().unwrap();
+                            page.refresh_task_timer(task.clone());
+                            page.imp().project_header.set_stat_updated(false);
+                        }
+                    };
+
+                    match scope {
+                        ActionScope::Project(_) => {
+                            let task_id = task.id();
+                            imp.calendar.refresh_task_timer(task_id);
+                            imp.calendar.refresh_days_views_duration(task_id);
+                            imp.calendar.refresh_parents_timers(task.parent());
+                        }
+                        ActionScope::Calendar => update_project_page(),
+                        ActionScope::None => {
+                            update_project_page();
+                            let task_id = task.id();
+                            imp.calendar.refresh_task_timer(task_id);
+                            imp.calendar.refresh_days_views_duration(task_id);
+                            imp.calendar.refresh_parents_timers(task.parent());
+                        }
+                        _ => unimplemented!(),
+                    }
+                },
+            );
+            klass.install_action(
+                "timer.start",
+                Some(&format!(
+                    "({}{})",
+                    Task::static_variant_type().as_str(),
+                    Record::static_variant_type().as_str()
+                )),
+                |obj, _, value| {
+                    let (task, record): (Task, Record) = value.unwrap().get().unwrap();
+
+                    if let Some(project_page) = obj.project_by_id(task.project()) {
+                        if let Some(task_row) = project_page.task_row(&task) {
+                            task_row.start_timer(record.to_owned());
+                        }
+                    }
+
+                    let imp = obj.imp();
+                    if let Some((_, task_row)) = imp.calendar.task_row(task.id()) {
+                        task_row.start_timer(record)
+                    }
+                },
+            );
+            klass.install_action(
+                "timer.stop",
+                Some(Task::static_variant_type().as_str()),
+                |obj, _, value| {
+                    let task: Task = value.unwrap().get().unwrap();
+
+                    if let Some(project_page) = obj.project_by_id(task.project()) {
+                        if let Some(task_row) = project_page.task_row(&task) {
+                            task_row.cancel_timer();
+                        }
+                    }
+
+                    let imp = obj.imp();
+                    if let Some((_, task_row)) = imp.calendar.task_row(task.id()) {
+                        task_row.cancel_timer()
+                    }
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -129,7 +286,7 @@ mod imp {
     }
     impl WidgetImpl for IPlanWindow {}
     impl WindowImpl for IPlanWindow {
-        fn close_request(&self) -> glib::signal::Inhibit {
+        fn close_request(&self) -> glib::Propagation {
             let obj = self.obj();
             if let Some(settings) = obj.settings() {
                 settings
@@ -160,36 +317,18 @@ glib::wrapper! {
 #[gtk::template_callbacks]
 impl IPlanWindow {
     pub fn new<P: glib::IsA<gtk::Application>>(application: &P) -> Self {
-        let projects = read_projects(true).expect("Failed to read projects");
-        let home_project = if let Some(project) = projects.get(0) {
-            project.clone()
-        } else {
-            let project: Project =
-                create_project(&gettext("Personal"), "", "").expect("Failed to create project");
-            create_section(&gettext("Tasks"), project.id()).unwrap();
-            project
-        };
         let settings = gio::Settings::new("ir.imansalmani.IPlan.State");
         let obj = glib::Object::builder::<IPlanWindow>()
             .property("application", application)
-            .property("project", home_project)
             .property("default-width", settings.int("width"))
             .property("default-height", settings.int("height"))
             .property("maximized", settings.boolean("is-maximized"))
             .property("fullscreened", settings.boolean("is-fullscreen"))
             .build();
-        let imp = obj.imp();
-        if settings.int("default-project-layout") == 1 {
-            imp.project_layout_button
-                .set_icon_name("view-columns-symbolic");
-            imp.project_lists.set_layout(ProjectLayout::Horizontal);
-        } else {
-            imp.project_lists.set_layout(ProjectLayout::Vertical);
-        }
+        settings
+            .bind("default-project-layout", &obj, "project-layout")
+            .build();
         obj.set_settings(settings);
-        obj.activate_action("project.open", None)
-            .expect("Failed to open project");
-        imp.sidebar_projects.select_active_project();
 
         if let Some(display) = gdk::Display::default() {
             let provider = gtk::CssProvider::new();
@@ -197,75 +336,220 @@ impl IPlanWindow {
             gtk::style_context_add_provider_for_display(&display, &provider, 400);
         }
 
+        let imp = obj.imp();
+        let calendar_imp = imp.calendar.imp();
+        calendar_imp
+            .toggle_sidebar_button
+            .bind_property("active", &imp.flap.get(), "reveal-flap")
+            .sync_create()
+            .bidirectional()
+            .build();
+
+        imp.flap
+            .bind_property(
+                "folded",
+                &calendar_imp.page_header.get(),
+                "show-start-title-buttons",
+            )
+            .sync_create()
+            .build();
+
+        imp.flap
+            .bind_property(
+                "folded",
+                &calendar_imp.toggle_sidebar_button.get(),
+                "visible",
+            )
+            .sync_create()
+            .build();
+
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
+        glib::idle_add_once(move || tx.send(()).unwrap());
+        rx.attach(
+            None,
+            glib::clone!(@weak obj => @default-return glib::ControlFlow::Break, move |_| {
+                obj.change_project(obj.home_project());
+                glib::ControlFlow::Break
+            }),
+        );
+
         obj
     }
 
     pub fn change_project(&self, project: Project) {
         let imp = self.imp();
-        self.set_project(&project);
-        imp.project_header.open_project(&project);
-        imp.project_lists.open_project(project.id());
-        imp.project_lists.select_task(None);
-        imp.sidebar_projects.select_active_project();
+        let project_id = project.id();
+        let project_page = self
+            .project_by_id(project_id)
+            .unwrap_or_else(|| self.new_project_page(&project));
+        self.set_visible_project(project_id);
+        project_page.select_task(None);
         imp.sidebar_projects.check_archive_hidden();
-        self.close_calendar();
-    }
-
-    fn close_calendar(&self) {
-        let imp = self.imp();
-        imp.calendar.set_visible(false);
+        imp.sidebar_projects.select_active_project();
         imp.calendar_button.add_css_class("flat");
     }
 
-    #[template_callback]
-    fn handle_project_layout_button_clicked(&self, button: gtk::Button) {
+    pub fn visible_project_page(&self) -> Option<ProjectPage> {
+        self.imp()
+            .stack_pages
+            .visible_child()
+            .and_downcast::<ProjectPage>()
+    }
+
+    pub fn visible_project(&self) -> Option<Project> {
+        let page = self.visible_project_page()?;
+        Some(page.project())
+    }
+
+    pub fn is_visible_project(&self, project_id: i64) -> bool {
+        self.imp().stack_pages.visible_child_name().unwrap() == project_id.to_string()
+    }
+
+    pub fn visible_project_id(&self) -> Option<i64> {
+        let page = self.imp().stack_pages.visible_child_name().unwrap();
+        page.parse::<i64>().ok()
+    }
+
+    pub fn close_sidebar(&self) {
         let imp = self.imp();
-        match button.icon_name() {
-            Some(icon_name) => {
-                if icon_name == "list-symbolic" {
-                    button.set_icon_name("view-columns-symbolic");
-                    imp.project_lists.set_layout(ProjectLayout::Horizontal);
-                    self.settings()
-                        .unwrap()
-                        .set_int("default-project-layout", 1)
-                        .expect("Could not set setting.");
-                } else {
-                    button.set_icon_name("list-symbolic");
-                    imp.project_lists.set_layout(ProjectLayout::Vertical);
-                    self.settings()
-                        .unwrap()
-                        .set_int("default-project-layout", 0)
-                        .expect("Could not set setting.");
-                }
-                imp.project_lists.open_project(self.project().id());
+        if imp.flap.is_folded() {
+            imp.flap.set_reveal_flap(false);
+        }
+    }
+
+    pub fn reset(&self) {
+        let imp = self.imp();
+
+        let pages = imp.stack_pages.observe_children();
+        for _ in 0..pages.n_items() {
+            let page = &pages.item(0).and_downcast::<gtk::Widget>().unwrap();
+            imp.stack_pages.remove(page);
+        }
+        imp.calendar.refresh();
+
+        let home_project = self.home_project();
+        imp.sidebar_projects.reset();
+        self.change_project(home_project);
+    }
+
+    pub fn add_delete_toast(&self, task: &Task, toast: adw::Toast) {
+        toast.set_action_name(Some("task.changed"));
+        toast.set_action_target_value(Some(&glib::Variant::from((
+            task.to_variant(),
+            ActionScope::DeleteToast.to_variant(),
+        ))));
+        self.imp().toast_overlay.add_toast(toast);
+    }
+
+    fn home_project(&self) -> Project {
+        let projects = read_projects(true).unwrap();
+        if let Some(project) = projects.first() {
+            project.clone()
+        } else {
+            let project: Project = create_project(&gettext("Personal"), "", "").unwrap();
+            create_section(&gettext("Tasks"), project.id()).unwrap();
+            self.imp().sidebar_projects.add_project(project.to_owned());
+            project
+        }
+    }
+
+    fn project_by_id(&self, id: i64) -> Option<ProjectPage> {
+        if let Some(child) = self.imp().stack_pages.child_by_name(&id.to_string()) {
+            child.downcast::<ProjectPage>().ok()
+        } else {
+            None
+        }
+    }
+
+    fn new_project_page(&self, project: &Project) -> ProjectPage {
+        let imp = self.imp();
+        let project_page = ProjectPage::new();
+        let project_page_imp = project_page.imp();
+
+        project_page_imp.layout_button.connect_clicked(
+            glib::clone!(@weak self as obj, @weak project_page => move |button| {
+                let layout = if button.icon_name().unwrap() == "list-symbolic" { 1 } else { 0 };
+                obj.set_project_layout(layout);
+                obj.apply_project_layout(&project_page);
+            }),
+        );
+
+        project_page_imp
+            .toggle_sidebar_button
+            .bind_property("active", &imp.flap.get(), "reveal-flap")
+            .sync_create()
+            .bidirectional()
+            .build();
+
+        self.bind_property(
+            "project-layout",
+            &project_page_imp.layout_button.get(),
+            "icon-name",
+        )
+        .transform_to(|_, layout: i32| {
+            if layout == 1 {
+                Some("view-columns-symbolic")
+            } else {
+                Some("list-symbolic")
             }
-            None => button.set_icon_name("list-symbolic"),
+        })
+        .sync_create()
+        .build();
+
+        imp.flap
+            .bind_property(
+                "folded",
+                &project_page_imp.page_header.get(),
+                "show-start-title-buttons",
+            )
+            .sync_create()
+            .build();
+
+        imp.flap
+            .bind_property(
+                "folded",
+                &project_page_imp.toggle_sidebar_button.get(),
+                "visible",
+            )
+            .sync_create()
+            .build();
+
+        imp.stack_pages
+            .add_named(&project_page, Some(&project.id().to_string()));
+
+        self.apply_project_layout(&project_page);
+        project_page.open_project(project);
+        project_page
+    }
+
+    fn set_visible_project(&self, id: i64) {
+        self.imp()
+            .stack_pages
+            .set_visible_child_name(&id.to_string());
+    }
+
+    fn apply_project_layout(&self, page: &ProjectPage) {
+        if self.project_layout() == 1 {
+            page.set_layout(ProjectLayout::Horizontal);
+        } else {
+            page.set_layout(ProjectLayout::Vertical);
         }
     }
 
     #[template_callback]
-    fn handle_calendar_button_clicked(&self, button: gtk::Button) {
+    fn handle_calendar_button_clicked(&self, button: MenuItem) {
         let imp = self.imp();
+        self.close_sidebar();
 
-        if imp.calendar.is_visible() {
+        if self.visible_project_page().is_none() {
             return;
         }
 
         button.remove_css_class("flat");
-        imp.project.take();
-        imp.calendar.set_visible(true);
-        if imp.calendar.imp().stack.visible_child_name().is_none() {
-            imp.calendar.open_today();
-        } else {
-            imp.calendar.refresh();
-        }
+        self.imp().stack_pages.set_visible_child_name("calendar");
         let projects_box: &gtk::ListBox = imp.sidebar_projects.imp().projects_box.as_ref();
-        projects_box.unselect_row(&projects_box.selected_row().unwrap());
-    }
-
-    #[template_callback]
-    fn handle_calendar_today_clicked(&self, _: gtk::Button) {
-        let imp = self.imp();
-        imp.calendar.open_today();
+        if let Some(row) = projects_box.selected_row() {
+            projects_box.unselect_row(&row);
+        }
     }
 }

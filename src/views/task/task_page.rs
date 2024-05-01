@@ -5,7 +5,8 @@ use std::unimplemented;
 
 use crate::db::models::{Record, Reminder, Task};
 use crate::db::operations::{
-    create_task, read_record, read_records, read_reminder, read_reminders, read_tasks, update_task,
+    create_task, new_subtask_position, read_records, read_reminder, read_reminders, read_tasks,
+    update_task,
 };
 use crate::views::record::{RecordRow, RecordWindow};
 use crate::views::reminder::{ReminderRow, ReminderWindow};
@@ -37,8 +38,6 @@ mod imp {
         #[template_child]
         pub subtasks_box: TemplateChild<TasksBox>,
         #[template_child]
-        pub records_page: TemplateChild<gtk::ScrolledWindow>,
-        #[template_child]
         pub records_box: TemplateChild<gtk::ListBox>,
         #[template_child]
         pub date_row: TemplateChild<DateRow>,
@@ -53,25 +52,29 @@ mod imp {
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
             klass.bind_template_instance_callbacks();
-            klass.install_action("task.check", Some("i"), move |_, _, _| {});
-            klass.install_action("task.duration-update", None, move |obj, _, _value| {
-                obj.imp().task_row.refresh_timer();
-            });
-            klass.install_action("project.update", None, move |obj, _, _value| {
-                let task = obj.task();
-                let imp = obj.imp();
-                let mut records =
-                    read_records(task.id(), false, None, None).expect("Failed to read records");
-                imp.task_row.refresh_timer();
-                if imp.records_box.observe_children().n_items() != (records.len() + 1) as u32 {
-                    records.sort_by_key(|record| record.id());
-                    let row = RecordRow::new(records.last().unwrap().to_owned());
-                    imp.records_box.append(&row);
-                }
-            });
-            klass.install_action("record.delete", None, move |obj, _, _value| {
-                obj.imp().task_row.refresh_timer();
-            });
+            klass.install_action(
+                "task.duration-changed",
+                Some(Task::static_variant_type().as_str()),
+                move |obj, _, value| {
+                    let imp = obj.imp();
+                    let task: Task = value.unwrap().get().unwrap();
+                    imp.task_row.refresh_timer();
+                    obj.root()
+                        .unwrap()
+                        .emit_by_name::<()>("task-duration-changed", &[&task]);
+
+                    if task.id() != task.id() {
+                        return;
+                    }
+
+                    let mut records = read_records(Some(task.id()), false, None, None).unwrap();
+                    if imp.records_box.observe_children().n_items() - 1 < records.len() as u32 {
+                        records.sort_by_key(|record| record.id());
+                        let row = obj.new_record_row(records.last().unwrap().to_owned());
+                        imp.records_box.append(&row);
+                    }
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -101,6 +104,7 @@ impl TaskPage {
         let task_project = task.project();
         let task_date = task.date();
         imp.task_row.reset(task);
+        imp.task_row.reset_timer();
 
         imp.date_row.set_clear_option(true);
         let date = task_date;
@@ -110,7 +114,7 @@ impl TaskPage {
 
         let reminders = read_reminders(Some(task_id)).expect("Failed to read reminders");
         for reminder in reminders {
-            let row = ReminderRow::new(reminder);
+            let row = obj.new_reminder_row(reminder);
             imp.reminders_expander_row.add_row(&row);
         }
 
@@ -119,8 +123,8 @@ impl TaskPage {
             .set_subtitle(&obj.description_display(&task_description));
         imp.description_buffer.set_text(&task_description);
 
-        let tasks =
-            read_tasks(None, None, None, Some(task_id), None).expect("Failed to read subtasks");
+        imp.subtasks_box.set_scrollable(false);
+        let tasks = read_tasks(None, None, None, Some(task_id), None, false).unwrap();
         imp.subtasks_box
             .set_items_wrapper(TasksBoxWrapper::Task(task_id, task_project));
         imp.subtasks_box.add_tasks(tasks);
@@ -137,9 +141,10 @@ impl TaskPage {
                 }
             });
 
-        let records = read_records(task_id, false, None, None).expect("Failed to read records");
+        let records =
+            read_records(Some(task_id), false, None, None).expect("Failed to read records");
         for record in records {
-            let row = RecordRow::new(record);
+            let row = obj.new_record_row(record);
             imp.records_box.append(&row);
         }
 
@@ -150,19 +155,32 @@ impl TaskPage {
         self.imp().task_row.task()
     }
 
-    pub fn add_record(&self, record_id: i64) {
-        let imp = self.imp();
-        imp.task_row.refresh_timer();
-        let record = read_record(record_id).expect("Failed to read record");
-        let row = RecordRow::new(record);
-        imp.records_box.append(&row);
-    }
-
     pub fn add_reminder(&self, reminder_id: i64) {
         let imp = self.imp();
         let reminder = read_reminder(reminder_id).expect("Failed to read record");
-        let row = ReminderRow::new(reminder);
+        let row = self.new_reminder_row(reminder);
         imp.reminders_expander_row.add_row(&row);
+        self.activate_action("task.changed", Some(&self.task().to_variant()))
+            .unwrap();
+    }
+
+    fn new_reminder_row(&self, reminder: Reminder) -> ReminderRow {
+        let row = ReminderRow::new(reminder);
+        row.connect_closure(
+            "changed",
+            true,
+            glib::closure_local!(@watch self as obj => move |_: ReminderRow, _: Reminder| {
+                obj.activate_action("task.changed", Some(&obj.task().to_variant())).unwrap();
+            }),
+        );
+        row.connect_closure(
+            "removed",
+            true,
+            glib::closure_local!(@watch self as obj => move |_: ReminderRow, _: i64| {
+                obj.activate_action("task.changed", Some(&obj.task().to_variant())).unwrap();
+            }),
+        );
+        row
     }
 
     fn description_display(&self, text: &str) -> String {
@@ -172,11 +190,25 @@ impl TaskPage {
         String::from("")
     }
 
+    fn new_record_row(&self, record: Record) -> RecordRow {
+        let row = RecordRow::new(record);
+        row.connect_closure("changed", true, glib::closure_local!(@watch self as obj => move |_: RecordRow| {
+            obj.activate_action("task.duration-changed", Some(&obj.task().to_variant())).unwrap();
+        }));
+        row.connect_closure("deleted", true, glib::closure_local!(@watch self as obj => move |row: RecordRow| {
+            obj.activate_action("task.duration-changed", Some(&obj.task().to_variant())).unwrap();
+            obj.imp().records_box.remove(&row);
+        }));
+        row
+    }
+
     #[template_callback]
     fn handle_task_date_changed(&self, datetime: glib::DateTime, _: DateRow) {
         let task = self.task();
         task.set_date(datetime.to_unix());
         update_task(&task).expect("Failed to change update task");
+        self.activate_action("task.changed", Some(&task.to_variant()))
+            .unwrap();
     }
 
     #[template_callback]
@@ -199,8 +231,10 @@ impl TaskPage {
         if task.description() != text {
             imp.description_expander_row
                 .set_subtitle(&self.description_display(&text));
-            task.set_property("description", text);
-            update_task(&task).expect("Failed to update task");
+            task.set_description(text);
+            update_task(&task).unwrap();
+            self.activate_action("task.changed", Some(&task.to_variant()))
+                .unwrap();
         }
     }
 
@@ -236,13 +270,34 @@ impl TaskPage {
         let record = Record::new(0, now as i64, 0, self.task().id());
         let modal = RecordWindow::new(&win.application().unwrap(), &win, record, false);
         modal.present();
+        modal.connect_closure(
+            "record-created",
+            true,
+            glib::closure_local!(@watch self as obj => move |_win: RecordWindow, record: Record| {
+                let imp = obj.imp();
+                imp.task_row.refresh_timer();
+                let row = obj.new_record_row(record);
+                imp.records_box.append(&row);
+                obj.root()
+                    .unwrap()
+                    .emit_by_name::<()>("task-duration-changed", &[&obj.task()]);
+            }),
+        );
     }
 
     #[template_callback]
     fn handle_new_subtask_button_clicked(&self, _button: gtk::Button) {
         let task = self.task();
-        let task = create_task("", 0, 0, task.id()).expect("Failed to create subtask");
-        self.imp().subtasks_box.add_fresh_task(task);
+        let task_id = task.id();
+        let subtask = Task::new(&[
+            ("project", &task.project()),
+            ("parent", &task_id),
+            ("position", &new_subtask_position(task_id)),
+        ]);
+        let subtask = create_task(subtask).unwrap();
+        self.activate_action("task.changed", Some(&subtask.to_variant()))
+            .unwrap();
+        self.imp().subtasks_box.add_fresh_task(subtask);
     }
 
     #[template_callback]

@@ -4,8 +4,9 @@ use std::cell::RefCell;
 
 use crate::db::models::Project;
 use crate::db::operations::{
-    new_position, read_project, read_projects, read_sections, update_project, update_task,
+    new_task_position, read_project, read_projects, read_sections, update_project, update_task,
 };
+use crate::views::ActionScope;
 use crate::views::{project::ProjectCreateWindow, sidebar::ProjectRow, task::TaskRow, IPlanWindow};
 mod imp {
     use super::*;
@@ -66,34 +67,24 @@ impl SidebarProjects {
 
     pub fn select_active_project(&self) {
         // Finding with id because index realtime changes when dragging a project
+        let projects_box = &self.imp().projects_box;
         let project_id = self
             .root()
             .unwrap()
             .downcast::<IPlanWindow>()
             .unwrap()
-            .project()
-            .id();
-        let projects_box = &self.imp().projects_box;
-        if project_id == 0 {
-            projects_box.select_row(None::<&gtk::ListBoxRow>);
+            .visible_project_id();
+
+        let row = if let Some(project_id) = project_id {
+            self.project_row_by_id(project_id)
         } else {
-            for project_row in projects_box.observe_children().into_iter() {
-                let project_row: ProjectRow = project_row.unwrap().downcast().unwrap();
-                if project_id == project_row.project().id() {
-                    projects_box.select_row(Some(&project_row));
-                    break;
-                }
-            }
-        }
+            None
+        };
+        projects_box.select_row(row.as_ref());
     }
 
     pub fn update_project(&self, project: &Project) {
-        let row = self
-            .imp()
-            .projects_box
-            .row_at_index(project.index())
-            .and_downcast::<ProjectRow>()
-            .unwrap();
+        let row = self.project_row_by_id(project.id()).unwrap();
         let row_imp = row.imp();
         row_imp.icon_label.set_label(&project.icon());
         row_imp.name_label.set_label(&project.name());
@@ -102,19 +93,20 @@ impl SidebarProjects {
         } else {
             row_imp.name_label.remove_css_class("dim-label");
         }
-        row.set_property("project", project);
+        row.set_project(project);
         row.changed();
     }
 
-    pub fn delete_project(&self, index: i32) {
+    pub fn delete_project(&self, project_id: i64) {
         let imp = self.imp();
-        let target_row = imp.projects_box.row_at_index(index).unwrap();
+        let target_row = self.project_row_by_id(project_id).unwrap();
         let last_index = imp
             .projects_box
             .last_child()
             .and_downcast::<gtk::ListBoxRow>()
             .unwrap()
             .index();
+        let index = target_row.index();
 
         for i in index + 1..last_index + 1 {
             let row = imp
@@ -123,7 +115,7 @@ impl SidebarProjects {
                 .and_downcast::<ProjectRow>()
                 .unwrap();
             let project = row.project();
-            project.set_property("index", project.index() - 1);
+            project.set_index(project.index() - 1);
         }
         imp.projects_box.remove(&target_row);
     }
@@ -136,14 +128,48 @@ impl SidebarProjects {
         }
     }
 
-    fn init_widgets(&self) {
+    pub fn add_project(&self, project: Project) {
         let imp = self.imp();
+        let row = ProjectRow::new(project);
+        imp.projects_box.append(&row);
+        imp.projects_box.select_row(Some(&row));
+    }
 
-        // Fetch
+    pub fn reset(&self) {
+        let imp = self.imp();
+        let rows = imp.projects_box.observe_children();
+        for _ in 0..rows.n_items() {
+            let row = rows.item(0).and_downcast::<gtk::Widget>().unwrap();
+            imp.projects_box.remove(&row);
+        }
+
+        self.fetch();
+    }
+
+    fn project_row_by_id(&self, project_id: i64) -> Option<ProjectRow> {
+        let imp = self.imp();
+        let rows = imp.projects_box.observe_children();
+        for i in 0..rows.n_items() {
+            let row = rows.item(i).and_downcast::<ProjectRow>().unwrap();
+            if row.project().id() == project_id {
+                return Some(row);
+            }
+        }
+        None
+    }
+
+    fn fetch(&self) {
+        let imp = self.imp();
         let projects = read_projects(true).expect("Failed to read projects");
         for project in projects {
             imp.projects_box.append(&ProjectRow::new(project));
         }
+    }
+
+    fn init_widgets(&self) {
+        let imp = self.imp();
+
+        self.fetch();
 
         // Projcets box filter
         imp.projects_box.set_filter_func(glib::clone!(
@@ -200,13 +226,9 @@ impl SidebarProjects {
 
     #[template_callback]
     fn handle_projects_box_row_activated(&self, row: gtk::ListBoxRow) {
-        let window = self.root().unwrap().downcast::<IPlanWindow>().unwrap();
         let row = row.downcast::<ProjectRow>().unwrap();
-        if window.project().id() != row.project().id() {
-            window.set_property("project", row.project().to_value());
-            self.activate_action("project.open", None)
-                .expect("Failed to open project");
-        }
+        self.activate_action("project.open", Some(&row.project().to_variant()))
+            .unwrap();
     }
 
     #[template_callback]
@@ -218,12 +240,9 @@ impl SidebarProjects {
             "project-created",
             true,
             glib::closure_local!(@watch self as obj => move |_win: ProjectCreateWindow, project: Project| {
-                let imp = obj.imp();
-                obj.root().and_downcast::<IPlanWindow>().unwrap().set_property("project", &project);
-                let row = ProjectRow::new(project);
-                imp.projects_box.append(&row);
-                imp.projects_box.select_row(Some(&row));
-                obj.activate_action("project.open", None).unwrap();
+                let project_variant = project.to_variant();
+                obj.add_project(project);
+                obj.activate_action("project.open", Some(&project_variant)).unwrap();
             }),
         );
     }
@@ -336,40 +355,48 @@ impl SidebarProjects {
         y: f64,
     ) -> bool {
         let row: TaskRow = value.get().unwrap();
-        let task = row.task();
         let project_row = self.imp().projects_box.row_at_y(y as i32).unwrap();
         let project = project_row.property::<Project>("project");
         let project_id = project.id();
         let window = self.root().and_downcast::<IPlanWindow>().unwrap();
         let win_imp = window.imp();
         let project_name = format!("{} {}", project.icon(), project.name());
-        let is_moved: bool;
         let toast_title: String;
 
-        if let Some(section) = read_sections(project_id).unwrap().first() {
+        let is_moved = if let Some(section) = read_sections(project_id).unwrap().first() {
             let section_id = section.id();
-            task.set_project(project_id);
-            task.set_section(section_id);
-            task.set_position(new_position(section_id));
-            update_task(&task).unwrap();
-
             toast_title = gettext("Task moved to {}").replace("{}", &project_name);
 
-            if win_imp.calendar.is_visible() {
-                row.imp().project_label.set_label(&project.name());
-                row.keep_after_dnd();
+            let row_imp = row.imp();
+            let action_scope = if row_imp.project_label.is_visible() {
+                row_imp.project_label.set_label(&project.name());
+                row.keep_after_dnd(); // FIXME: section and position change is unnecessary
+                ActionScope::Calendar.to_variant()
             } else {
                 row.parent()
                     .and_downcast::<gtk::ListBox>()
                     .unwrap()
                     .remove(&row);
-            }
+                ActionScope::None.to_variant()
+            };
 
-            is_moved = true;
+            let task = row.task();
+            task.set_project(project_id);
+            task.set_section(section_id);
+            task.set_position(new_task_position(section_id));
+            task.set_parent(0);
+            update_task(&task).unwrap();
+
+            self.activate_action(
+                "task.changed",
+                Some(&glib::Variant::from((task.to_variant(), action_scope))),
+            )
+            .unwrap();
+            true
         } else {
             toast_title = gettext("{} doesn't have any section").replace("{}", &project_name);
-            is_moved = false;
-        }
+            false
+        };
 
         let toast = adw::Toast::new(&toast_title);
         win_imp.toast_overlay.add_toast(toast);

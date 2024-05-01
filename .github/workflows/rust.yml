@@ -1,6 +1,10 @@
 name: Rust
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,17 +15,19 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/gtk-rs/gtk4-rs/gtk4:latest
+      image: ubuntu:23.04
 
     steps:
+    - name: Update repositories
+      run: apt update
+    - name: Install dependencies
+      run: apt install -y curl libgtk-4-dev libadwaita-1-dev gettext python3 ninja-build meson desktop-file-utils
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: stable
         override: true
-    - name: install msgfmt
-      run: sudo apt install -y msgfmt
     - uses: BSFishy/meson-build@v1.0.3
       with:
         action: build

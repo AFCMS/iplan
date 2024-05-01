@@ -1,5 +1,6 @@
 use adw::{prelude::*, subclass::prelude::*};
 use gettextrs::gettext;
+use glib::{once_cell::sync::Lazy, subclass::Signal};
 use gtk::glib;
 use gtk::glib::Properties;
 use std::cell::RefCell;
@@ -33,7 +34,7 @@ mod imp {
     impl ObjectSubclass for ProjectEditWindow {
         const NAME: &'static str = "ProjectEditWindow";
         type Type = super::ProjectEditWindow;
-        type ParentType = adw::Window;
+        type ParentType = gtk::Window;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -46,6 +47,15 @@ mod imp {
     }
 
     impl ObjectImpl for ProjectEditWindow {
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![Signal::builder("changed")
+                    .param_types([Project::static_type()])
+                    .build()]
+            });
+            SIGNALS.as_ref()
+        }
+
         fn properties() -> &'static [glib::ParamSpec] {
             Self::derived_properties()
         }
@@ -60,12 +70,11 @@ mod imp {
     }
     impl WidgetImpl for ProjectEditWindow {}
     impl WindowImpl for ProjectEditWindow {}
-    impl AdwWindowImpl for ProjectEditWindow {}
 }
 
 glib::wrapper! {
     pub struct ProjectEditWindow(ObjectSubclass<imp::ProjectEditWindow>)
-        @extends gtk::Widget, gtk::Window, adw::Window,
+        @extends gtk::Widget, gtk::Window,
         @implements gtk::Buildable, gtk::Native, gtk::Root;
 }
 
@@ -105,27 +114,15 @@ impl ProjectEditWindow {
 
         project.connect_notify_local(
             None,
-            glib::clone!(@weak self as obj => move|project, param| {
-                update_project(&project).expect("Failed to update task");
-                if param.name() == "description" {
-                    return;
-                }
-                obj.transient_for()
-                    .unwrap()
-                    .activate_action("project.update", None)
-                    .expect("Failed to send project.update action");
+            glib::clone!(@weak self as obj => move|project, _| {
+                update_project(project).expect("Failed to update task");
+                obj.emit_by_name::<()>("changed", &[&project]);
             }),
         );
 
         imp.description_buffer
             .bind_property("text", &imp.description_expander_row.get(), "subtitle")
-            .transform_to(|_, text: String| {
-                if let Some(first_line) = text.lines().next() {
-                    Some(String::from(first_line))
-                } else {
-                    None
-                }
-            })
+            .transform_to(|_, text: String| text.lines().next().map(String::from))
             .sync_create()
             .build();
     }
@@ -151,7 +148,7 @@ impl ProjectEditWindow {
                 .unwrap();
         dialog.set_transient_for(self.transient_for().as_ref());
         let project = self.project();
-        let dialog_heading = gettext("Delete \"{}\" project?");
+        let dialog_heading = gettext("Delete “{}” project?");
         dialog.set_heading(Some(&dialog_heading.replace("{}", &project.name())));
         dialog.set_body(&gettext(
             "The project and its tasks will be permanently lost.",

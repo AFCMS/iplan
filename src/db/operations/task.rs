@@ -3,21 +3,14 @@ use rusqlite::Result;
 use crate::db::get_connection;
 use crate::db::models::Task;
 
-pub fn create_task(name: &str, project_id: i64, section_id: i64, parent: i64) -> Result<Task> {
-    let position = new_position(section_id);
+pub fn create_task(task: Task) -> Result<Task> {
     let conn = get_connection();
     conn.execute(
-        "INSERT INTO tasks(name, project, section, position, parent) VALUES (?1,?2,?3,?4,?5)",
-        (name, project_id, section_id, position, parent),
+        "INSERT INTO tasks(name, project, section, position, parent, description, date) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+        (task.name(), task.project(), task.section(), task.position(), task.parent(), task.description(), task.date()),
     )?;
-    Ok(Task::new(&[
-        ("id", &conn.last_insert_rowid()),
-        ("name", &name),
-        ("project", &project_id),
-        ("section", &section_id),
-        ("position", &position),
-        ("parent", &parent),
-    ]))
+    task.set_id(conn.last_insert_rowid());
+    Ok(task)
 }
 
 pub fn read_tasks(
@@ -26,6 +19,7 @@ pub fn read_tasks(
     done_tasks: Option<bool>,
     parent_id: Option<i64>,
     time_range: Option<(i64, i64)>,
+    suspended: bool,
 ) -> Result<Vec<Task>> {
     let filters = &mut vec![];
     if let Some(project_id) = project_id {
@@ -43,7 +37,9 @@ pub fn read_tasks(
     if let Some((start, end)) = time_range {
         filters.push(format!("date >= {start} AND date < {end}"));
     }
-    filters.push("suspended = 0".to_string());
+    if !suspended {
+        filters.push("suspended = false".to_string());
+    }
     let filters_str = &mut String::new();
     for filter in filters {
         let prefix = if filters_str.is_empty() {
@@ -55,7 +51,7 @@ pub fn read_tasks(
     }
     let conn = get_connection();
     let mut stmt = conn.prepare(&format!(
-        "SELECT * FROM tasks {filters_str} ORDER BY position DESC"
+        "SELECT * FROM tasks {filters_str} ORDER BY position"
     ))?;
     let mut rows = stmt.query([])?;
     let mut tasks = Vec::new();
@@ -63,6 +59,40 @@ pub fn read_tasks(
         tasks.push(Task::try_from(row)?)
     }
     Ok(tasks)
+}
+
+pub fn read_subtasks_summary(task_id: i64) -> Result<Vec<(String, bool)>> {
+    let conn = get_connection();
+    let mut stmt =
+        conn.prepare("SELECT name, done FROM tasks WHERE parent = ?1 ORDER BY position DESC")?;
+    let mut rows = stmt.query([task_id])?;
+    let mut subtasks = Vec::new();
+    while let Some(row) = rows.next()? {
+        subtasks.push((row.get::<usize, String>(0)?, row.get::<usize, bool>(1)?));
+    }
+    Ok(subtasks)
+}
+
+pub fn task_tree(task_id: i64, has_date: bool) -> Result<Vec<i64>> {
+    let conn = get_connection();
+    let filter = if has_date { "WHERE date != 0" } else { "" };
+    let mut stmt = conn.prepare(&format!(
+        "WITH RECURSIVE task_tree(id, parent, date) AS (
+	        SELECT id, parent, date FROM tasks WHERE id=?1
+	        UNION ALL
+	        SELECT tasks.id, tasks.parent, tasks.date
+		        FROM tasks
+		        JOIN task_tree ON tasks.parent=task_tree.id
+        )
+        SELECT id FROM task_tree {filter}",
+    ))?;
+    let mut rows = stmt.query([task_id])?;
+    let mut subtasks = Vec::new();
+    while let Some(row) = rows.next()? {
+        subtasks.push(row.get::<usize, i64>(0)?);
+    }
+
+    Ok(subtasks)
 }
 
 pub fn read_task(task_id: i64) -> Result<Task> {
@@ -76,59 +106,78 @@ pub fn update_task(task: &Task) -> Result<()> {
     let old_task = read_task(task.id())?;
     let position_stmt = &mut String::new();
 
-    if task.position() != old_task.position() {
-        position_stmt.push_str(&format!("position = {},", task.position()));
-        if task.parent() != old_task.parent() {
-            if old_task.parent() == 0 {
+    let task_position = task.position();
+    let old_task_position = old_task.position();
+    if task_position != old_task_position {
+        position_stmt.push_str(&format!("position = {},", task_position));
+        let old_task_parent = old_task.parent();
+        if task.parent() != old_task_parent {
+            if old_task_parent == 0 {
                 // Decrease tasks position in previous section
                 conn.execute(
                     "UPDATE tasks SET position = position - 1
                     WHERE position > ?1 AND section = ?2",
-                    (old_task.position(), old_task.section()),
+                    (old_task_position, old_task.section()),
                 )?;
             } else {
                 // Decrease subtasks position in previous parent
                 conn.execute(
                     "UPDATE tasks SET position = position - 1
                     WHERE position > ?1 AND parent = ?2",
-                    (old_task.position(), old_task.parent()),
+                    (old_task_position, old_task_parent),
                 )?;
             }
         } else if task.section() != old_task.section() {
             // Decrease tasks position in previous section
-            conn.execute(
-                "UPDATE tasks SET position = position - 1
-                WHERE position > ?1 AND section = ?2",
-                (old_task.position(), old_task.section()),
-            )?;
+            // Prevent from running, for old tasks without section
+            if old_task.section() != 0 {
+                conn.execute(
+                    "UPDATE tasks SET position = position - 1
+                    WHERE position > ?1 AND section = ?2",
+                    (old_task_position, old_task.section()),
+                )?;
+            }
 
             // Increase tasks position in target section
             // Notify: Position not checked for value more than needed
             conn.execute(
                 "UPDATE tasks SET position = position + 1
                 WHERE position >= ?1 AND section = ?2",
-                (task.position(), task.section()),
+                (task_position, task.section()),
             )?;
-        } else if task.position() > old_task.position() {
+        } else if task_position > old_task_position {
             conn.execute(
                 "UPDATE tasks SET position = position - 1
                 WHERE position > ?1 AND position <= ?2 AND section = ?3",
-                (old_task.position(), task.position(), task.section()),
+                (old_task_position, task_position, task.section()),
             )?;
-        } else if task.position() < old_task.position() {
+        } else if task_position < old_task_position {
             conn.execute(
                 "UPDATE tasks SET position = position + 1
                 WHERE position >= ?1 AND position < ?2 AND section = ?3",
-                (task.position(), old_task.position(), task.section()),
+                (task_position, old_task_position, task.section()),
             )?;
         }
+    }
+
+    let task_project = task.project();
+    if task_project != old_task.project() {
+        conn.execute(
+            "UPDATE tasks SET project = ?1 WHERE parent = ?2",
+            (task_project, task.id()),
+        )?;
+    }
+
+    let task_suspended = task.suspended();
+    if task_suspended != old_task.suspended() {
+        update_task_tree_suspended(&conn, task.id(), task_suspended)?;
     }
 
     conn.execute(
         &format!(
             "UPDATE tasks SET
             name = ?2, done = ?3, project = ?4, section = ?5,
-            {position_stmt} suspended = ?6, parent = ?7, description = ?8, date = ?9 WHERE id = ?1"
+            {position_stmt} parent = ?6, description = ?7, date = ?8 WHERE id = ?1"
         ),
         (
             task.id(),
@@ -136,7 +185,6 @@ pub fn update_task(task: &Task) -> Result<()> {
             task.done(),
             task.project(),
             task.section(),
-            task.suspended(),
             task.parent(),
             task.description(),
             task.date(),
@@ -145,37 +193,64 @@ pub fn update_task(task: &Task) -> Result<()> {
     Ok(())
 }
 
-pub fn delete_task(task: &Task) -> Result<()> {
+fn update_task_tree_suspended(
+    conn: &rusqlite::Connection,
+    task_id: i64,
+    suspended: bool,
+) -> Result<()> {
+    conn.execute(
+        "WITH RECURSIVE task_tree(id, parent) AS (
+	        SELECT id, parent FROM tasks WHERE id=?1
+	        UNION ALL
+	        SELECT tasks.id, tasks.parent
+		        FROM tasks
+		        JOIN task_tree ON tasks.parent=task_tree.id
+        )
+        UPDATE tasks SET suspended = ?2 WHERE id IN (SELECT id FROM task_tree)",
+        (task_id, suspended),
+    )?;
+    Ok(())
+}
+
+pub fn delete_task(task_id: i64) -> Result<()> {
     let conn = get_connection();
-    // Notify: Not return error when id not exists
-    let task_id = task.id();
-    conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))?;
-    conn.execute("DELETE FROM records WHERE task = ?", (task_id,))?;
-    conn.execute("DELETE FROM reminders WHERE task = ?", (task_id,))?;
+    // No return error when id not exists
+    conn.execute_batch(&format!(
+        "BEGIN TRANSACTION;
+        CREATE TEMPORARY TABLE temp_task_tree (id INT, project INT, section INT, position INT, parent INT);
 
-    let subtasks = read_tasks(None, None, None, Some(task_id), None).unwrap();
-    for subtask in subtasks {
-        delete_task(&subtask).unwrap();
-    }
+        WITH RECURSIVE cte_task_tree(id, project, section, position, parent) AS (
+            SELECT id, project, section, position, parent FROM tasks WHERE id={task_id}
+            UNION ALL
+            SELECT tasks.id, tasks.project, tasks.section, tasks.position, tasks.parent
+                FROM tasks
+                JOIN cte_task_tree ON tasks.parent=cte_task_tree.id
+        )
+        INSERT INTO temp_task_tree (id, project, section, position, parent) SELECT * FROM cte_task_tree;
 
-    // Decrease upper tasks position
-    if task.parent() == 0 {
-        conn.execute(
-            "UPDATE tasks SET position = position - 1 WHERE position > ?1 AND section = ?2",
-            (task.position(), task.section()),
-        )?;
-    } else {
-        conn.execute(
-            "UPDATE tasks SET position = position - 1 WHERE position > ?1 AND parent = ?2",
-            (task.position(), task.parent()),
-        )?;
-    }
+        DELETE FROM records WHERE task IN (SELECT id from temp_task_tree);
+        DELETE FROM reminders WHERE task IN (SELECT id from temp_task_tree);
+        DELETE FROM tasks WHERE  id in (SELECT id from temp_task_tree);
+
+        UPDATE tasks
+            SET position = tasks.position - 1
+            FROM temp_task_tree
+            WHERE tasks.position > temp_task_tree.position
+            AND tasks.section = temp_task_tree.section
+            AND tasks.parent = temp_task_tree.parent;
+
+        DROP TABLE temp_task_tree;
+        COMMIT;"
+    ))?;
 
     Ok(())
 }
 
 pub fn find_tasks(text: &str, done: bool) -> Result<Vec<Task>> {
-    let filters = if done { "" } else { "AND done = false" };
+    let mut filters = "AND suspended = false".to_string();
+    if !done {
+        filters.push_str(" AND done = false");
+    };
     // Replace % and _ with \% and \_ because they have meaning
     // FIXME: do this without copy string
     let text = text.replace('%', r"\%").replace('_', r"\_");
@@ -191,11 +266,12 @@ pub fn find_tasks(text: &str, done: bool) -> Result<Vec<Task>> {
     Ok(tasks)
 }
 
-pub fn new_position(section_id: i64) -> i32 {
+pub fn new_task_position(section_id: i64) -> i32 {
     let conn = get_connection();
     let mut stmt = conn
         .prepare("SELECT position FROM tasks WHERE section = ? ORDER BY position DESC")
         .expect("Failed to find new task position");
+    // FIXME: Do this inside the SQL query?
     let first_row = stmt.query_row([section_id], |row| row.get::<_, i32>(0));
     match first_row {
         Ok(first_row) => first_row + 1,
@@ -207,10 +283,25 @@ pub fn new_subtask_position(parent: i64) -> i32 {
     let conn = get_connection();
     let mut stmt = conn
         .prepare("SELECT position FROM tasks WHERE parent = ? ORDER BY position DESC")
-        .expect("Failed to find new task position");
+        .expect("Failed to find new subtask position");
     let first_row = stmt.query_row([parent], |row| row.get::<_, i32>(0));
     match first_row {
         Ok(first_row) => first_row + 1,
         Err(_) => 0,
     }
+}
+
+pub fn task_duration(task_id: i64) -> Result<i64> {
+    let conn = get_connection();
+    let mut stmt = conn.prepare(
+        "WITH RECURSIVE task_tree(id, parent) AS (
+	        SELECT id, parent FROM tasks WHERE id=?1
+	        UNION ALL
+	        SELECT tasks.id, tasks.parent
+		        FROM tasks
+		        JOIN task_tree ON tasks.parent=task_tree.id
+        )
+        SELECT coalesce(sum(duration), 0) FROM records JOIN task_tree ON records.task=task_tree.id;",
+    )?;
+    stmt.query_row([task_id], |row| row.get::<_, i64>(0))
 }

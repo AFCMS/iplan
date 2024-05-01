@@ -1,10 +1,11 @@
 use gettextrs::gettext;
 use glib::Properties;
+use glib::{once_cell::sync::Lazy, subclass::Signal};
 use gtk::{glib, prelude::*, subclass::prelude::*};
 use std::cell::{Cell, RefCell};
 
 use crate::db::models::Record;
-use crate::db::operations::{create_record, delete_record, update_record};
+use crate::db::operations::{create_record, update_record};
 use crate::views::snippets::{DateRow, TimeRow};
 
 mod imp {
@@ -19,6 +20,8 @@ mod imp {
         #[property(get, set)]
         pub state: Cell<bool>,
         #[template_child]
+        pub window_title: TemplateChild<gtk::Label>,
+        #[template_child]
         pub toast_overlay: TemplateChild<adw::ToastOverlay>,
         #[template_child]
         pub start_date_row: TemplateChild<DateRow>,
@@ -32,8 +35,6 @@ mod imp {
         pub end_datetime: RefCell<i64>,
         #[template_child]
         pub duration_row: TemplateChild<TimeRow>,
-        #[template_child]
-        pub delete_group: TemplateChild<adw::PreferencesGroup>,
     }
 
     #[glib::object_subclass]
@@ -57,6 +58,19 @@ mod imp {
             self.parent_constructed();
             let obj = self.obj();
             obj.add_bindings();
+        }
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![
+                    Signal::builder("record-created")
+                        .param_types([Record::static_type()])
+                        .build(),
+                    Signal::builder("record-updated")
+                        .param_types([Record::static_type()])
+                        .build(),
+                ]
+            });
+            SIGNALS.as_ref()
         }
         fn properties() -> &'static [glib::ParamSpec] {
             Self::derived_properties()
@@ -103,23 +117,8 @@ impl RecordWindow {
             .set_time_from_digits(start.hour(), start.minute(), start.seconds());
         imp.duration_row.set_time(duration as i32);
         if state {
-            imp.delete_group.set_visible(true);
+            imp.window_title.set_label(&gettext("Edit Record"));
         }
-        obj.record()
-            .connect_duration_notify(glib::clone!(@weak obj => move |record| {
-                let imp = obj.imp();
-                let difference = obj.end_datetime() - record.start();
-                if difference > 0 {
-                    imp.end_date_row.remove_css_class("error");
-                    imp.end_time_row.remove_css_class("error");
-                } else if difference > 24 * 60 * -60 {
-                    imp.end_date_row.remove_css_class("error");
-                    imp.end_time_row.add_css_class("error");
-                } else  {
-                    imp.end_date_row.add_css_class("error");
-                    imp.end_time_row.remove_css_class("error");
-                }
-            }));
         obj
     }
 
@@ -167,6 +166,22 @@ impl RecordWindow {
             .sync_create()
             .bidirectional()
             .build();
+
+        self.connect_end_datetime_notify(|obj| {
+            let imp = obj.imp();
+            let record = obj.record();
+            let difference = obj.end_datetime() - record.start();
+            if difference > 0 {
+                imp.end_date_row.remove_css_class("error");
+                imp.end_time_row.remove_css_class("error");
+            } else if difference > 24 * 60 * -60 {
+                imp.end_date_row.remove_css_class("error");
+                imp.end_time_row.add_css_class("error");
+            } else {
+                imp.end_date_row.add_css_class("error");
+                imp.end_time_row.remove_css_class("error");
+            }
+        });
     }
 
     fn set_duration(&self, duration: i64) {
@@ -205,14 +220,10 @@ impl RecordWindow {
 
         if self.state() {
             update_record(&record).expect("Failed to update record");
+            self.emit_by_name::<()>("record-updated", &[&record]);
         } else {
-            let record = create_record(record.start(), record.task(), record.duration())
-                .expect("Failed to create record");
-            self.transient_for()
-                .and_downcast::<gtk::Window>()
-                .unwrap()
-                .activate_action("record.created", Some(&record.id().to_variant()))
-                .expect("Failed to send record.created action");
+            let record = create_record(record.start(), record.task(), record.duration()).unwrap();
+            self.emit_by_name::<()>("record-created", &[&record]);
         }
 
         self.close();
@@ -262,11 +273,5 @@ impl RecordWindow {
     fn handle_duration_time_changed(&self, time: i32, _: TimeRow) {
         let record = self.record();
         record.set_duration(time as i64);
-    }
-
-    #[template_callback]
-    fn handle_delete_activated(&self, _: adw::ActionRow) {
-        delete_record(self.record().id()).expect("Failed to delete record");
-        self.close();
     }
 }

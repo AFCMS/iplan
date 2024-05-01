@@ -1,11 +1,12 @@
 use adw;
 use adw::subclass::prelude::*;
 use adw::traits::PreferencesRowExt;
+use glib::{once_cell::sync::Lazy, subclass::Signal};
 use gtk::{glib, glib::Properties, prelude::*};
 use rusqlite;
 use std::cell::RefCell;
 
-use crate::db::models::Reminder;
+use crate::db::models::{Reminder, Task};
 use crate::db::operations::read_reminder;
 use crate::views::reminder::ReminderWindow;
 
@@ -37,6 +38,20 @@ mod imp {
     }
 
     impl ObjectImpl for ReminderRow {
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
+                vec![
+                    Signal::builder("changed")
+                        .param_types([Reminder::static_type()])
+                        .build(),
+                    Signal::builder("removed")
+                        .param_types([i64::static_type()])
+                        .build(),
+                ]
+            });
+            SIGNALS.as_ref()
+        }
+
         fn properties() -> &'static [glib::ParamSpec] {
             Self::derived_properties()
         }
@@ -73,7 +88,12 @@ impl ReminderRow {
 
     fn set_labels(&self) {
         let reminder = self.reminder();
-        self.set_title(&reminder.datetime_datetime().format("%B %e, %H:%M").unwrap());
+        let datetime = reminder.datetime_datetime();
+        self.set_title(&format!(
+            "{} {}",
+            Task::date_display(&datetime),
+            datetime.format("%H:%M").unwrap()
+        ));
     }
 
     #[template_callback]
@@ -82,21 +102,23 @@ impl ReminderRow {
         let modal = ReminderWindow::new(&win.application().unwrap(), &win, self.reminder(), true);
         modal.present();
         modal.connect_close_request(
-            glib::clone!(@weak self as obj => @default-return gtk::Inhibit(false), move |_| {
+            glib::clone!(@weak self as obj => @default-return glib::Propagation::Proceed, move |_| {
                 match read_reminder(obj.reminder().id()) {
                     Ok(reminder) => {
+                        obj.emit_by_name::<()>("changed", &[&reminder]);
                         obj.set_reminder(reminder);
                         obj.set_labels();
                     }
                     Err(err) => match err {
                         rusqlite::Error::QueryReturnedNoRows  => {
                             let reminders_box = obj.parent().and_downcast::<gtk::ListBox>().unwrap();
+                            obj.emit_by_name::<()>("removed", &[&obj.reminder().id()]);
                             reminders_box.remove(&obj);
                         },
                         err => panic!("{err}")
                     }
                 }
-                gtk::Inhibit(false)
+                glib::Propagation::Proceed
             }),
         );
     }

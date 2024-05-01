@@ -11,91 +11,25 @@ Your plan for improving personal life and workflow
 
 ## Features
 
-- Grouping tasks with project and list
+- Grouping tasks in projects and sections
 - Timer for tasks
 - Global search
-- Arranging projects, lists and tasks by drag and drop
+- Arranging projects, sections, and tasks by drag and drop
 
 ## Installation
 
-The recommended way of installing IPlan is through Flatpak. If you don't have
-Flatpak installed, you can get it from [the Flatpak website](https://flatpak.org/setup).
+The recommended way of installing IPlan is through Flatpak. If you don't have Flatpak, you can get it from [here](https://flatpak.org/setup).
 
 ```bash
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 flatpak install flathub ir.imansalmani.IPlan
 ```
-
-<a href="https://flathub.org/apps/details/ir.imansalmani.IPlan"><img src="https://flathub.org/assets/badges/flathub-badge-en.png" alt="Flathub IPlan" width="200"></a>
+<a href="https://flathub.org/apps/details/ir.imansalmani.IPlan"><img src="https://flathub.org/assets/badges/flathub-badge-en.png" alt="Download on Flathub" width="240"></a>
 
 ## Contributing
 
-Please, see the [contribution guide](https://github.com/iman-salmani/iplan/blob/a0d66bc99494b798357b64b04c811899e4238025/CONTRIBUTING.md) if you wish to translate.
+Please, see the [contribution guide](CONTRIBUTING.md) if you wish to translate.
 
 ## Build
 
-### Gnome Builder
-
-1. Clone the repo
-
-```sh
-git clone https://github.com/iman-salmani/iplan.git
-```
-
-2. Open project with Gnome Builder
-3. Press the run button
-
-### Manuall
-
-1. Clone the repo and move to project directory
-
-```sh
-git clone https://github.com/iman-salmani/iplan.git && cd iplan
-```
-
-2. Install flatpak builder (flatpak-builder package available in most distributions)
-
-- Fedora
-
-```sh
-sudo dnf install flatpak-builder
-```
-
-- Ubuntu and Debian based distributions
-
-```sh
-sudo apt install flatpak-builder
-```
-
-- Arch
-
-```sh
-sudo pacman -S flatpak-builder
-```
-
-4. Install dependencies
-
-```sh
-flatpak install runtime/org.gnome.Sdk/x86_64/43 runtime/org.freedesktop.Sdk.Extension.rust-stable/x86_64/22.08 runtime/org.gnome.Platform/x86_64/43
-```
-
-3. Build and install with flatpak builder
-
-- System wide (Recommended)
-
-```sh
-sudo flatpak-builder --install builddir ir.imansalmani.IPlan.json --force-clean
-```
-
-- User (For testing)
-
-```sh
-flatpak-builder --install builddir ir.imansalmani.IPlan.json --force-clean --user
-```
-
-4. Run
-   > App should be appear in your applications menu.
-
-```sh
-flatpak run ir.imansalmani.IPlan
-```
+Please, see the [build guide](https://github.com/iman-salmani/iplan/wiki/How-to-Build-IPlan).

@@ -5,11 +5,12 @@ use std::cell::{Cell, RefCell};
 use std::thread;
 use std::time::Duration;
 
-use crate::db::models::Task;
+use crate::db::models::{Project, Task};
 use crate::db::operations::{create_section, read_section, read_sections, read_task};
-use crate::views::{project::SectionBox, task::TaskRow, IPlanWindow};
+use crate::views::project::{ProjectHeader, SectionBox};
+use crate::views::{task::TaskRow, ActionScope, IPlanWindow};
 
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Debug)]
 pub enum ProjectLayout {
     Horizontal,
     #[default]
@@ -20,14 +21,24 @@ mod imp {
     use super::*;
 
     #[derive(Default, gtk::CompositeTemplate, Properties)]
-    #[template(resource = "/ir/imansalmani/iplan/ui/project/project_lists.ui")]
-    #[properties(wrapper_type=super::ProjectLists)]
-    pub struct ProjectLists {
+    #[template(resource = "/ir/imansalmani/iplan/ui/project/project_page.ui")]
+    #[properties(wrapper_type=super::ProjectPage)]
+    pub struct ProjectPage {
         pub layout: Cell<ProjectLayout>,
+        #[property(get, set)]
+        pub project: RefCell<Project>,
         #[property(get, set)]
         pub drag_scroll_controller: RefCell<Option<gtk::DropTarget>>,
         #[property(get, set)]
         pub scroll: Cell<i8>,
+        #[template_child]
+        pub page_header: TemplateChild<adw::HeaderBar>,
+        #[template_child]
+        pub toggle_sidebar_button: TemplateChild<gtk::ToggleButton>,
+        #[template_child]
+        pub project_header: TemplateChild<ProjectHeader>,
+        #[template_child]
+        pub layout_button: TemplateChild<gtk::Button>,
         #[template_child]
         pub scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
@@ -41,10 +52,10 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for ProjectLists {
-        const NAME: &'static str = "ProjectLists";
-        type Type = super::ProjectLists;
-        type ParentType = gtk::Widget;
+    impl ObjectSubclass for ProjectPage {
+        const NAME: &'static str = "ProjectPage";
+        type Type = super::ProjectPage;
+        type ParentType = gtk::Box;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -54,6 +65,24 @@ mod imp {
                 let adjustment = imp.scrolled_window.hadjustment();
                 adjustment.set_value(adjustment.value() + (adjustment.step_increment() * value));
             });
+            klass.install_action(
+                "task.duration-changed",
+                Some(Task::static_variant_type().as_str()),
+                move |obj, _, value| {
+                    let task: Task = value.unwrap().get().unwrap();
+                    obj.parent()
+                        .unwrap()
+                        .activate_action(
+                            "task.duration-changed",
+                            Some(&glib::Variant::from((
+                                task.to_variant(),
+                                ActionScope::Project(task.project()).to_variant(),
+                            ))),
+                        )
+                        .unwrap();
+                    obj.imp().project_header.set_stat_updated(false);
+                },
+            );
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -61,7 +90,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for ProjectLists {
+    impl ObjectImpl for ProjectPage {
         fn constructed(&self) {
             // Translators: {} Will be replaced with a shortcut label.
             let placeholder_subtitle = gettext("Use the primary menu {} for adding a new section");
@@ -88,48 +117,32 @@ mod imp {
             self.derived_set_property(id, value, pspec)
         }
     }
-    impl BuildableImpl for ProjectLists {}
-    impl WidgetImpl for ProjectLists {
-        fn request_mode(&self) -> gtk::SizeRequestMode {
-            self.parent_request_mode();
-            gtk::SizeRequestMode::ConstantSize
-        }
-
-        fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
-            self.obj()
-                .first_child()
-                .unwrap()
-                .measure(orientation, for_size)
-        }
-
-        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
-            self.obj()
-                .first_child()
-                .unwrap()
-                .size_allocate(&gtk::Allocation::new(0, 0, width, height), baseline);
-        }
-    }
+    impl WidgetImpl for ProjectPage {}
+    impl BoxImpl for ProjectPage {}
 }
 
 glib::wrapper! {
-    pub struct ProjectLists(ObjectSubclass<imp::ProjectLists>)
-        @extends glib::InitiallyUnowned, gtk::Widget,
-        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget;
+    pub struct ProjectPage(ObjectSubclass<imp::ProjectPage>)
+        @extends glib::InitiallyUnowned, gtk::Widget, gtk::Box,
+        @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
 }
 
-impl Default for ProjectLists {
+impl Default for ProjectPage {
     fn default() -> Self {
         glib::Object::builder().build()
     }
 }
 
-impl ProjectLists {
+impl ProjectPage {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn open_project(&self, project_id: i64) {
+    pub fn open_project(&self, project: &Project) {
         let imp = self.imp();
+        let project_id = project.id();
+
+        imp.project_header.open_project(project);
 
         let section_boxes = imp.sections_box.observe_children();
         for _ in 0..section_boxes.n_items() {
@@ -154,22 +167,57 @@ impl ProjectLists {
                 imp.sections_box.append(&section_box);
             }
         }
+        self.set_project(project);
     }
 
-    pub fn reset_task(&self, task: Task) {
+    pub fn reset_task(&self, mut task: Task) {
+        let task_parent = task.parent();
+        let is_subtask = task_parent != 0;
+        if is_subtask {
+            if let Ok(parent) = read_task(task_parent) {
+                // FIXME: find better way instead of read_task
+                task = parent;
+            } else {
+                return;
+            }
+        }
+
         if let Some(section_box) = self.section_by_id(task.section()) {
             let tasks_box = section_box.imp().tasks_box.get();
             if let Some(row) = tasks_box.item_by_id(task.id()) {
-                if task.done() {
+                if is_subtask {
+                    row.reset_subtasks();
+                } else if task.done() {
                     tasks_box.remove_item(&row);
                 } else {
                     row.reset(task);
                     row.changed();
-                    row.activate_action("project.update", None)
-                        .expect("Failed to send project.update signal");
                 }
+            } else if !task.done() {
+                let row = TaskRow::new(task, false, false);
+                tasks_box.add_item(&row);
             }
         }
+    }
+
+    pub fn refresh_task_timer(&self, mut task: Task) {
+        while task.parent() != 0 {
+            task = read_task(task.parent()).unwrap();
+        }
+
+        if let Some(row) = self.task_row(&task) {
+            row.refresh_timer();
+        }
+    }
+
+    pub fn task_row(&self, task: &Task) -> Option<TaskRow> {
+        if let Some(section_box) = self.section_by_id(task.section()) {
+            let tasks_box = section_box.imp().tasks_box.get();
+            if let Some(row) = tasks_box.item_by_id(task.id()) {
+                return Some(row);
+            }
+        }
+        None
     }
 
     pub fn select_task(&self, task_id: Option<i64>) {
@@ -211,12 +259,12 @@ impl ProjectLists {
         imp.sections_box.append(&section_box);
         let section_box_imp = section_box.imp();
         section_box_imp.name_button.set_visible(false); // Name entry visibility have binding to this
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         glib::idle_add_once(move || tx.send("").unwrap());
         let name_entry = section_box_imp.name_entry.get();
         rx.attach(None, move |_text| {
             name_entry.grab_focus();
-            glib::Continue(false)
+            glib::ControlFlow::Break
         });
     }
 
@@ -238,6 +286,11 @@ impl ProjectLists {
                 }
                 self.add_drag_vscroll_controller();
             }
+        }
+        let section_boxes = imp.sections_box.observe_children();
+        for i in 0..section_boxes.n_items() {
+            let section_box = section_boxes.item(i).and_downcast::<SectionBox>().unwrap();
+            section_box.set_layout(&layout);
         }
         imp.layout.set(layout);
     }
@@ -320,7 +373,7 @@ impl ProjectLists {
     }
 
     fn start_scroll(&self) {
-        let (tx, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+        let (tx, rx) = glib::MainContext::channel(glib::Priority::DEFAULT);
         thread::spawn(move || loop {
             if tx.send(()).is_err() {
                 break;
@@ -329,27 +382,27 @@ impl ProjectLists {
         });
         rx.attach(
             None,
-            glib::clone!(@weak self as obj => @default-return glib::Continue(false), move |_| {
+            glib::clone!(@weak self as obj => @default-return glib::ControlFlow::Break, move |_| {
                 let scroll = obj.scroll();
                 match scroll {
-                    0 => glib::Continue(false),
+                    0 => glib::ControlFlow::Break,
                     1 => {
                         obj.imp().scrolled_window.emit_scroll_child(gtk::ScrollType::StepDown, false);
-                        glib::Continue(true)
+                        glib::ControlFlow::Continue
                     }
                     -1 => {
                         obj.imp().scrolled_window.emit_scroll_child(gtk::ScrollType::StepUp, false);
-                        glib::Continue(true)
-                    }
+                        glib::ControlFlow::Continue
+					}
                     2 => {
                         obj.imp().scrolled_window.emit_scroll_child(gtk::ScrollType::StepRight, false);
-                        glib::Continue(true)
-                    }
+                        glib::ControlFlow::Continue
+					}
                     -2 => {
                         obj.imp().scrolled_window.emit_scroll_child(gtk::ScrollType::StepLeft, false);
-                        glib::Continue(true)
-                    }
-                    _ => glib::Continue(false),
+                        glib::ControlFlow::Continue
+					}
+                    _ => glib::ControlFlow::Break,
                 }
             }),
         );

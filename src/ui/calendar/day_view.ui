@@ -3,13 +3,14 @@
 <interface>
   <requires lib="gtk" version="4.0" />
   <requires lib="Adw" version="1.0" />
-  <template class="TasksList" parent="GtkBox">
+  <template class="DayView" parent="GtkBox">
     <property name="orientation">vertical</property>
-    <property name="width-request">480</property>
-    <property name="margin-bottom">24</property>
+    <property name="focusable">true</property>
     <child>
       <object class="GtkBox"><!-- header -->
         <property name="margin-bottom">12</property>
+        <property name="margin-start">15</property>
+        <property name="margin-end">15</property>
         <child>
           <object class="GtkLabel" id="name">
             <style>

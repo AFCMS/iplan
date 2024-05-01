@@ -18,28 +18,31 @@ pub fn create_record(start: i64, task_id: i64, duration: i64) -> Result<Record> 
 }
 
 pub fn read_records(
-    task_id: i64,
+    task_id: Option<i64>,
     incomplete: bool,
     start: Option<i64>,
     end: Option<i64>,
 ) -> Result<Vec<Record>> {
     let filters = &mut String::new();
     if incomplete {
-        filters.push_str("AND duration = 0 ")
+        filters.push_str("duration = 0 ")
     } else {
-        filters.push_str("AND duration > 0 ")
+        filters.push_str("duration > 0 ")
+    }
+    if let Some(task_id) = task_id {
+        filters.push_str(&format!("AND task = {task_id} "));
     }
     if let Some(start) = start {
-        filters.push_str(&format!("AND start > {start} "))
+        filters.push_str(&format!("AND start > {start} "));
     }
     if let Some(end) = end {
-        filters.push_str(&format!("AND start < {end}"))
+        filters.push_str(&format!("AND start < {end}"));
     }
     let conn = get_connection();
     let mut stmt = conn.prepare(&format!(
-        "SELECT * FROM records WHERE task = ? {filters} ORDER BY start DESC"
+        "SELECT * FROM records WHERE {filters} ORDER BY start DESC"
     ))?;
-    let mut rows = stmt.query([task_id])?;
+    let mut rows = stmt.query([])?;
     let mut records = Vec::new();
     while let Some(row) = rows.next()? {
         records.push(Record::try_from(row)?)
@@ -47,7 +50,7 @@ pub fn read_records(
     Ok(records)
 }
 
-pub fn read_record(record_id: i64) -> Result<Record> {
+pub fn _read_record(record_id: i64) -> Result<Record> {
     let conn = get_connection();
     let mut stmt = conn.prepare("SELECT * FROM records WHERE id = ?")?;
     stmt.query_row([record_id], |row| Record::try_from(row))

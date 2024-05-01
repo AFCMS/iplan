@@ -3,16 +3,15 @@
 # This file is distributed under the same license as the iplan package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: iplan\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-07-30 20:17+0330\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Last-Translator: Sokolovsky Maxim <sokolovskymaximorg@duck.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -24,472 +23,567 @@ msgstr ""
 #: data/ir.imansalmani.IPlan.desktop.in:4
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:7
 msgid "Your plan for improving personal life and workflow"
-msgstr ""
+msgstr "Ваш план по улучшению личной жизни и рабочего процесса"
 
 #: data/ir.imansalmani.IPlan.desktop.in:5
 msgid "plan;planning;tasks;projects;"
 msgstr ""
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:9
+#, fuzzy
 msgid ""
 "IPlan goal is to be a user-friendly tool for those who want to organize "
 "their ether personal life, jobs, or both."
 msgstr ""
+"Цель IPlan - стать удобным инструментом для тех, кто хочет организоватьсвою "
+"личную жизнь или работу."
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:10
 msgid "Features:"
-msgstr ""
+msgstr "Функции"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:12
 msgid "Grouping tasks with project and list"
-msgstr ""
+msgstr "Группировка задач по проекту и списку"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:13
 msgid "Timer for tasks"
-msgstr ""
+msgstr "Таймер для выполненяемых задач"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:14 src/ui/task/task_page.ui:73
 #: src/ui/task/task_page.ui:89
 msgid "Subtasks"
-msgstr ""
+msgstr "Подзадачи"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:15
 msgid "Calendar for Exploring tasks by date"
-msgstr ""
+msgstr "Календарь для просмотра задач по дате"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:16
 msgid "Global search"
-msgstr ""
+msgstr "Глобальный поиск"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:17
 msgid "Arranging projects, lists, and tasks by drag and drop"
-msgstr ""
+msgstr "Упорядочивание проектов, списков и задач с помощью перетаскивания"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:22
 msgid "The IPlan main window"
-msgstr ""
+msgstr "Главное окно IPlan"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:26
 msgid "Task window"
-msgstr ""
+msgstr "Окно задач"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:30 src/ui/window.ui:53
 #: src/ui/calendar/calendar.ui:31
 msgid "Calendar"
-msgstr ""
+msgstr "Календарь"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:34
 msgid "The IPlan main window (dark mode)"
-msgstr ""
+msgstr "Главное окно IPlan (Темный режим)"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:38
 msgid "The IPlan main window (small size)"
-msgstr ""
+msgstr "Главное окно IPlan (малый размер окна)"
 
 #: data/ir.imansalmani.IPlan.metainfo.xml.in:45
 msgid "Iman Salmani"
-msgstr ""
+msgstr "Iman Salmani"
 
 #: src/ui/window.ui:42
 msgid "Main Menu"
-msgstr ""
+msgstr "Главное меню"
 
 #: src/ui/window.ui:90
 msgid "_Preferences"
-msgstr ""
+msgstr "_Настройки"
 
 #: src/ui/window.ui:94
 msgid "_Backup"
-msgstr ""
+msgstr "_Резервное копирование"
 
 #: src/ui/window.ui:98
 msgid "_Keyboard Shortcuts"
-msgstr ""
+msgstr "_Комбинации клавиш"
 
 #: src/ui/window.ui:102
 msgid "_About IPlan"
-msgstr ""
+msgstr "_О приложении"
 
 #: src/ui/preferences_window.ui:17
 msgid "Run in Background"
-msgstr ""
+msgstr "Запускать в фоновом режиме"
 
 #: src/ui/preferences_window.ui:18
 msgid "Allow send reminders when the app is closed"
-msgstr ""
+msgstr "Разрешить отправление напоминаний, когда окно приложения закрыто"
 
 #: src/ui/shortcuts_window.ui:13
 msgctxt "shortcut window"
 msgid "Application"
-msgstr ""
+msgstr "Приложение"
 
 #: src/ui/shortcuts_window.ui:16
 msgctxt "shortcut window"
 msgid "Preferences"
-msgstr ""
+msgstr "Настройки"
 
 #: src/ui/shortcuts_window.ui:23
 msgctxt "shortcut window"
 msgid "Keyboard Shortcuts"
-msgstr ""
+msgstr "Комбинации клавиш"
 
 #: src/ui/shortcuts_window.ui:30
 msgctxt "shortcut window"
 msgid "Primary Menu"
-msgstr ""
+msgstr "Главное меню"
 
 #: src/ui/shortcuts_window.ui:36
 msgctxt "shortcut window"
 msgid "Quit"
-msgstr ""
+msgstr "Выйти"
 
 #: src/ui/shortcuts_window.ui:45
 msgctxt "shortcut window"
 msgid "Tasks"
-msgstr ""
+msgstr "Задачи"
 
 #: src/ui/shortcuts_window.ui:48
 msgctxt "shortcut window"
 msgid "Search"
-msgstr ""
+msgstr "Поиск"
 
 #: src/ui/backup_window.ui:19
 msgid "Backup"
-msgstr ""
+msgstr "Резервное копирование"
 
 #: src/ui/backup_window.ui:35 src/views/backup_window.rs:62
 msgid "Export"
-msgstr ""
+msgstr "Экспорт"
 
 #: src/ui/backup_window.ui:47
 msgid "Data folder path"
-msgstr ""
+msgstr "Путь к папке с данными"
 
 #: src/ui/backup_window.ui:48
 msgid "Add this path to your backup application"
-msgstr ""
+msgstr "Добавьте этот путь в ваше приложение резервного копирования"
 
 #: src/ui/backup_window.ui:68 src/views/backup_window.rs:98
 msgid "Import"
-msgstr ""
+msgstr "Импорт"
 
 #: src/ui/backup_window.ui:69
 msgid "While importing, previous data will be cached"
-msgstr ""
+msgstr "При импорте предыдущие данные будут кэшироваться"
 
 #: src/ui/calendar/calendar.ui:41 src/ui/snippets/date_row.ui:26
 #: src/db/models/task.rs:128 src/views/calendar/day_view.rs:94
 msgid "Today"
-msgstr ""
+msgstr "Сегодня"
 
 #: src/ui/project/project_create_window.ui:16
 msgid "New Project"
-msgstr ""
+msgstr "Новый проект"
 
 #: src/ui/project/project_create_window.ui:24 src/ui/record/record_window.ui:26
 #: src/ui/reminder/reminder_window.ui:25
 msgid "Cancel"
-msgstr ""
+msgstr "Отменить"
 
 #: src/ui/project/project_create_window.ui:30
 msgid "Add"
-msgstr ""
+msgstr "Добавить"
 
 #: src/ui/project/project_create_window.ui:62
 #: src/ui/project/project_edit_window.ui:50
 msgid "Name"
-msgstr ""
+msgstr "Имя"
 
 #: src/ui/project/project_create_window.ui:69
 #: src/ui/project/project_edit_window.ui:57
 msgid "Icon"
-msgstr ""
+msgstr "Иконка"
 
 #: src/ui/project/project_create_window.ui:88
 #: src/ui/project/project_edit_window.ui:76 src/ui/task/task_page.ui:45
 msgid "Description"
-msgstr ""
+msgstr "Описание"
 
 #: src/ui/project/project_edit_window.ui:16
 msgid "Edit Project"
-msgstr ""
+msgstr "Редактировать проект"
 
 #: src/ui/project/project_edit_window.ui:104
 msgid "Archive"
-msgstr ""
+msgstr "Архивировать"
 
 #: src/ui/project/project_edit_window.ui:115
 msgid "Delete"
-msgstr ""
+msgstr "Удалить"
 
 #: src/ui/project/project_header.ui:108
 msgid "Time spent"
-msgstr ""
+msgstr "Затраченное время"
 
 #: src/ui/project/project_header.ui:141
 msgid "Time spent per day"
-msgstr ""
+msgstr "Затраченное время за день"
 
 #: src/ui/project/project_page.ui:27
+#, fuzzy
 msgid "Project Menu"
-msgstr ""
+msgstr "Проекты"
 
 #: src/ui/project/project_page.ui:64
 msgid "no sections found"
-msgstr ""
+msgstr "Разделы не найдены"
 
 #: src/ui/project/project_page.ui:93
 msgid "New section"
-msgstr ""
+msgstr "Новый раздел"
 
 #: src/ui/project/project_page.ui:107
 msgid "New _Section"
-msgstr ""
+msgstr "Новый _раздел"
 
 #: src/ui/project/project_page.ui:111
 msgid "_Edit Project"
-msgstr ""
+msgstr "_Редактировать проект"
 
 #: src/ui/project/section_box.ui:50 src/ui/task/tasks_box.ui:47
 msgid "Add task"
-msgstr ""
+msgstr "Добавить задачу"
 
 #: src/ui/project/section_box.ui:80
 msgid "Done tasks"
-msgstr ""
+msgstr "Завершенные задачи"
 
 #: src/ui/project/section_box.ui:91
 msgid "Delete section"
-msgstr ""
+msgstr "Удалить раздел"
 
 #: src/ui/record/record_window.ui:18 src/ui/task/task_page.ui:166
 msgid "New Record"
-msgstr ""
+msgstr "Новая запись"
 
 #: src/ui/record/record_window.ui:32 src/ui/reminder/reminder_window.ui:31
 msgid "Done"
-msgstr ""
+msgstr "Готово"
 
 #: src/ui/record/record_window.ui:49
 msgid "Starts"
-msgstr ""
+msgstr "Начало"
 
 #: src/ui/record/record_window.ui:52 src/ui/record/record_window.ui:69
 #: src/ui/reminder/reminder_window.ui:50
 msgid "Date"
-msgstr ""
+msgstr "Дата"
 
 #: src/ui/record/record_window.ui:58 src/ui/record/record_window.ui:75
 #: src/ui/reminder/reminder_window.ui:56
 msgid "Time"
-msgstr ""
+msgstr "Время"
 
 #: src/ui/record/record_window.ui:66
 msgid "Ends"
-msgstr ""
+msgstr "Конец"
 
 #: src/ui/record/record_window.ui:84
 msgid "Duration"
-msgstr ""
+msgstr "Продолжительность"
 
 #: src/ui/reminder/reminder_window.ui:17
 msgid "Reminder"
-msgstr ""
+msgstr "Напоминание"
 
 #: src/ui/reminder/reminder_window.ui:67
 msgid "delete"
-msgstr ""
+msgstr "удалить"
 
 #: src/ui/search/search_window.ui:18
 msgid "Search"
-msgstr ""
+msgstr "Поиск"
 
 #: src/ui/search/search_window.ui:55
 msgid "no results found"
-msgstr ""
+msgstr "результатов не найдено"
 
 #: src/ui/sidebar/sidebar_projects.ui:21
 msgid "Projects"
-msgstr ""
+msgstr "Проекты"
 
 #: src/ui/sidebar/sidebar_projects.ui:36
 msgid "Show archive projects"
-msgstr ""
+msgstr "Показать архивированные проекты"
 
 #: src/ui/sidebar/sidebar_projects.ui:43
 msgid "New project"
-msgstr ""
+msgstr "Новый проект"
 
 #: src/ui/snippets/delete_dialog.ui:13
 msgid "_Cancel"
-msgstr ""
+msgstr "_Отменить"
 
 #: src/ui/snippets/delete_dialog.ui:14
 msgid "_Delete"
-msgstr ""
+msgstr "_Удалить"
 
 #: src/ui/snippets/date_row.ui:40
 msgid "No Date"
-msgstr ""
+msgstr "Нет Даты"
 
 #: src/ui/task/task_row.ui:220 src/views/task/task_row.rs:328
 msgid "Start _Timer"
-msgstr ""
+msgstr "Запустить _таймер"
 
 #: src/ui/task/task_row.ui:229
 msgid "Move Up"
-msgstr ""
+msgstr "Переместить вверх"
 
 #: src/ui/task/task_row.ui:237
 msgid "Move Down"
-msgstr ""
+msgstr "Переместить вниз"
 
 #: src/ui/task/task_row.ui:248
 msgid "_Delete Task"
-msgstr ""
+msgstr "_Удалить задачу"
 
 #: src/ui/task/task_page.ui:26
 msgid "Due date"
-msgstr ""
+msgstr "Срок выполнения"
 
 #: src/ui/task/task_page.ui:32
 msgid "Reminders"
-msgstr ""
+msgstr "Напоминания"
 
 #: src/ui/task/task_page.ui:94
 msgid "Records"
-msgstr ""
+msgstr "Записи"
 
 #: src/ui/task/tasks_box.ui:78
 msgid "Add Task"
-msgstr ""
+msgstr "Добавить задачу"
 
 #: src/ui/task/tasks_done_window.ui:52
 msgid "no done tasks found"
-msgstr ""
+msgstr "Нет выполненных задач"
 
 #. Translators: Replace "translator-credits" with your names, one name per line
 #: src/application.rs:347
 msgid "translator-credits"
-msgstr ""
+msgstr "Sokolovsky Maxim <sokolovskymaximorg@duck.com>"
 
 #: src/application.rs:378 src/application.rs:414
 msgid "IPlan needs to run in the background to send reminders"
-msgstr ""
+msgstr "IPlan нужен запуск в фоновом режиме для отправки напоминаний"
 
 #: src/db/models/task.rs:130
 msgid "Tomorrow"
-msgstr ""
+msgstr "Завтра"
 
 #: src/db/models/record.rs:75
 msgid "day"
-msgstr ""
+msgstr "день"
 
 #: src/db/models/record.rs:77
 msgid "days"
-msgstr ""
+msgstr "дни"
 
 #: src/views/window.rs:450
 msgid "Personal"
-msgstr ""
+msgstr "Личный"
 
 #: src/views/window.rs:451 src/views/project/project_create_window.rs:148
 msgid "Tasks"
-msgstr ""
+msgstr "Задачи"
 
 #: src/views/backup_window.rs:91
 msgid "Path copied!"
-msgstr ""
+msgstr "Путь скопирован!"
 
 #: src/views/backup_window.rs:111
 msgid "Error while caching previous data"
-msgstr ""
+msgstr "Ошибка при кэшировании предыдущих данных"
 
 #: src/views/backup_window.rs:114
 msgid "Error while importing data"
-msgstr ""
+msgstr "Ошибка при импорте данных"
 
 #: src/views/project/project_create_window.rs:140
 msgid "Project should have a name!"
-msgstr ""
+msgstr "Проект должен иметь имя!"
 
 #: src/views/project/project_edit_window.rs:157
 msgid "Delete “{}” project?"
-msgstr ""
+msgstr "Удалить проект “{}”?"
 
 #: src/views/project/project_edit_window.rs:160
 msgid "The project and its tasks will be permanently lost."
-msgstr ""
+msgstr "Проект и его задачи будут безвозвратно утеряны."
 
 #. Translators: {} Will be replaced with a shortcut label.
 #: src/views/project/project_page.rs:96
 msgid "Use the primary menu {} for adding a new section"
-msgstr ""
+msgstr "Используйте главное меню {} для добавления нового раздела"
 
 #: src/views/project/project_page.rs:254
 msgid "New Section"
-msgstr ""
+msgstr "Новый раздел"
 
 #: src/views/project/section_box.rs:80
 msgid "“{}” moved to the done tasks list"
-msgstr ""
+msgstr "Задача “{}” перемещена в список выполненных задач"
 
 #: src/views/project/section_box.rs:82 src/views/task/task_row.rs:554
 msgid "Undo"
-msgstr ""
+msgstr "Отменить"
 
 #: src/views/project/section_box.rs:312
 msgid "Delete “{}” section?"
-msgstr ""
+msgstr "Удалить секцию “{}”?"
 
 #: src/views/project/section_box.rs:315
 msgid "The section and its tasks will be permanently lost."
-msgstr ""
+msgstr "Раздел и его задачи будут безвозвратно утеряны."
 
 #: src/views/record/record_row.rs:102
 msgid "until"
-msgstr ""
+msgstr "вместо"
 
 #: src/views/record/record_window.rs:120
 msgid "Edit Record"
-msgstr ""
+msgstr "Редактировать запись"
 
 #: src/views/record/record_window.rs:207
 msgid "Duration can't be 0"
-msgstr ""
+msgstr "Длительность не может быть равна 0"
 
 #: src/views/record/record_window.rs:215
 msgid "Record end time can't be in future"
-msgstr ""
+msgstr "Время окончания записи не может быть в будущем"
 
 #: src/views/reminder/reminder_window.rs:111
 msgid "Time can't be in the past"
-msgstr ""
+msgstr "Время не может быть в прошлом"
 
 #: src/views/search/search_result.rs:71
 msgid "project"
-msgstr ""
+msgstr "Проекты"
 
 #: src/views/search/search_result.rs:82
 msgid "task"
-msgstr ""
+msgstr "Подзадачи"
 
 #: src/views/sidebar/sidebar_projects.rs:368
 msgid "Task moved to {}"
-msgstr ""
+msgstr "Задача перемещена в {}"
 
 #: src/views/sidebar/sidebar_projects.rs:396
 msgid "{} doesn't have any section"
-msgstr ""
+msgstr "{} не имеет ни одного раздела"
 
 #: src/views/task/task_row.rs:240
 msgid "Inbox"
-msgstr ""
+msgstr "Входящие"
 
 #: src/views/task/task_row.rs:553
 msgid "“{}” is going to delete"
-msgstr ""
+msgstr "Задача “{}” была удалена"
 
 #: src/views/task/tasks_done_window.rs:110
 msgid "Done Tasks"
-msgstr ""
+msgstr "Выполненные задачи"
+
+#~ msgid "New features and updates"
+#~ msgstr "Новые функции и обновления"
+
+#~ msgid "Move up and down option for tasks rows"
+#~ msgstr "Возможность перемещения вверх и вниз по строкам задач"
+
+#~ msgid "Fade effect for moving between projects"
+#~ msgstr "Эффект затухания для перехода между проектами"
+
+#~ msgid "Improve date format"
+#~ msgstr "Улучшить формат даты"
+
+#~ msgid "Chart of Time spent in last 7 days"
+#~ msgstr "График времени, затраченного за последние 7 дней"
+
+#~ msgid "Option to disable run in background"
+#~ msgstr "Опция отключения запуска в фоновом режиме"
+
+#, fuzzy
+#~ msgid "Improve duration format"
+#~ msgstr "Улучшить формат даты"
+
+#, fuzzy
+#~ msgid "New Project create window"
+#~ msgstr "Новый проект"
+
+#, fuzzy
+#~ msgid "Scroll while dragging task"
+#~ msgstr "Ошибка при импорте данных"
+
+#, fuzzy
+#~ msgid "New design for task rows"
+#~ msgstr "Возможность перемещения вверх и вниз по строкам задач"
+
+#, fuzzy
+#~ msgid "app.search"
+#~ msgstr "Поиск"
+
+#, fuzzy
+#~ msgid "calendar"
+#~ msgstr "Календарь"
+
+#, fuzzy
+#~ msgid "app.preferences"
+#~ msgstr "Настройки"
+
+#, fuzzy
+#~ msgid "app.backup"
+#~ msgstr "Резервная копия"
+
+#, fuzzy
+#~ msgid "duration_label"
+#~ msgstr "Продолжительность"
+
+#, fuzzy
+#~ msgid "delete_button"
+#~ msgstr "удалить"
+
+#, fuzzy
+#~ msgid "project_popover"
+#~ msgstr "Проект"
+
+#, fuzzy
+#~ msgid "start"
+#~ msgstr "Начало"
+
+#, fuzzy
+#~ msgid "section.new"
+#~ msgstr "Новый раздел"
+
+#, fuzzy
+#~ msgid "project.edit"
+#~ msgstr "Проект"
+
+#, fuzzy
+#~ msgid "capture"
+#~ msgstr "Функции"
+
+#, fuzzy
+#~ msgid "cancel"
+#~ msgstr "Отменить"
+
+#~ msgid "Previous week"
+#~ msgstr "Предыдущая неделя"
+
+#~ msgid "Next week"
+#~ msgstr "Следующая неделя"
+
+#~ msgid "Task"
+#~ msgstr "Задача"
